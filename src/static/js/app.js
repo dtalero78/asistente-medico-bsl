@@ -10,25 +10,33 @@ let resumenGlobal = ""; // 👈 Puedes definir esto fuera de la función, arriba
 async function getChatbotData() {
     const urlParams = new URLSearchParams(window.location.search);
     const _id = urlParams.get("_id") || urlParams.get("ref");
+
     if (!_id) {
-        console.warn("No se proporcionó _id o ref en la URL");
+        console.warn("⚠️ No se proporcionó _id o ref en la URL");
         return null;
     }
+
     try {
         console.log("🔍 Obteniendo datos de CHATBOT para _id:", _id);
         const response = await fetch(`https://www.bsl.com.co/_functions/chatbot?_id=${_id}`);
         const data = await response.json();
+
         if (data.error) {
             console.error("❌ Error al obtener datos:", data.error);
             return null;
         }
-        console.log("✅ Datos obtenidos:", data);
+
+        // ✅ Forzamos que el _id quede disponible dentro del objeto
+        data._id = _id;
+        console.log("✅ Datos obtenidos y _id asignado:", data);
         return data;
+
     } catch (error) {
         console.error("❌ Error al obtener datos de CHATBOT:", error);
         return null;
     }
 }
+
 
 
 
@@ -212,7 +220,8 @@ async function initOpenAIRealtime() {
                     Antecedentes familiares: ${chatbotData.antecedentesFamiliares?.join(", ") || "no especificados"}.
                     
                     Pregúntale sobre el historial de salud y los antecedentes familiares que anotó en el formulario. Si no anotó ninguno, no lo menciones.
-                    pregúntale por los últimos 2 trabajos que tuvo y si tiene alguna enfermedad a partir de ellos
+                    pregúntale por los últimos 2 trabajos que tuvo y si tiene alguna enfermedad a partir de ellos.
+                    Pregúntale para que entidad o empresa está solicitando el certificado médico.
                     No te extiendas demasiado. La entrevista no debe durar más de 2 minutos.
                     Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
                     Al finalizar la entrevista, genera un resumen completo de la conversación y llámalo como función sendEmail({ message: "resumen" }) para enviarlo por correo.
@@ -374,18 +383,23 @@ endCallBtn.addEventListener('click', async () => {
   });
   
 
-async function sendEmail(message) {
+  async function sendEmail(message) {
     const loader = document.querySelector('.loader');
     loader.style.display = 'block';
 
-
     try {
+        const _id = chatbotData?._id || null;
+
+        console.log("🧾 Enviando resumen con _id:", _id, "y mensaje:", message);
+
         const response = await fetch('/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ message, _id })  // ✅ Enviar _id correctamente
         });
 
+        const result = await response.json();
+        console.log("📬 Respuesta del backend:", result);
 
         if (response.ok) {
             showNotification('Email sent successfully!', 'success');
@@ -393,11 +407,14 @@ async function sendEmail(message) {
             showNotification('Failed to send email', 'error');
         }
     } catch (error) {
+        console.error("❌ Error en sendEmail frontend:", error);
         showNotification('Error sending email', 'error');
     } finally {
         loader.style.display = 'none';
     }
 }
+
+
 
 
 function showNotification(message, type) {

@@ -9,33 +9,29 @@ import os
 load_dotenv()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+CORS(app)
 print("✅ Flask iniciado correctamente")
 
 @app.route('/')
 def index():
     return render_template('call.html')
 
-
 @app.route('/session', methods=['GET'])
 def get_session():
     try:
         url = "https://api.openai.com/v1/realtime/sessions"
-        
         payload = {
             "model": "gpt-4o-realtime-preview-2024-12-17",
             "modalities": ["audio", "text"],
             "voice": "ash",
-            "instructions": "Eres un asitente médico de BSL"
+            "instructions": "Eres un asistente médico de BSL"
         }
-        
         headers = {
             'Authorization': 'Bearer ' + os.getenv('OPENAI_API_KEY'),
             'Content-Type': 'application/json'
         }
-
         response = requests.post(url, json=payload, headers=headers)
         return response.json()
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -43,7 +39,16 @@ def get_session():
 def send_email():
     try:
         data = request.json
-        msg = MIMEText(data['message'])
+        message = data.get('message')
+        _id = data.get('_id')
+
+        print("📩 Datos recibidos en /send-email:", {'_id': _id, 'message': message})
+
+        if not message:
+            return jsonify({'error': 'Falta el mensaje'}), 400
+
+        # Enviar correo
+        msg = MIMEText(message)
         msg['Subject'] = 'Call Summary'
         msg['From'] = os.getenv('SMTP_USERNAME')
         msg['To'] = os.getenv('RECEIVING_EMAIL')
@@ -53,32 +58,71 @@ def send_email():
             port=int(os.getenv('SMTP_PORT')),
             timeout=10
         ) as server:
-            server.login(
-                os.getenv('SMTP_USERNAME'),
-                os.getenv('SMTP_PASSWORD')
-            )
+            server.login(os.getenv('SMTP_USERNAME'), os.getenv('SMTP_PASSWORD'))
             server.send_message(msg)
-            
+
+        print("✅ Correo enviado")
+
+        # Enviar por WhatsApp
+        to = "573008021701"
+        sendTextMessage(to, message)
+
+        # Guardar resumen en Wix si hay _id
+        if _id:
+            wix_url = "https://www.bsl.com.co/_functions/actualizarResumen"
+            resultado_wix = enviar_resumen_a_wix(wix_url, _id, message)
+            print("📤 Resultado al guardar en Wix:", resultado_wix)
+
+        print("✅ Envío completo: email, WhatsApp, y Wix")
         return jsonify({
-            'success': True, 
-            'message': 'Email sent successfully'
+            'success': True,
+            'message': 'Resumen enviado por email, WhatsApp y guardado en Wix'
         })
 
-    except smtplib.SMTPConnectError:
-        return jsonify({
-            'error': 'Failed to connect to email server'
-        }), 503
-    except smtplib.SMTPAuthenticationError:
-        return jsonify({
-            'error': 'Email authentication failed'
-        }), 401
     except Exception as e:
-        return jsonify({
-            'error': f"Email error: {str(e)}"
-        }), 500
+        print("❌ Error en /send-email:", str(e))
+        return jsonify({'error': f"Email error: {str(e)}"}), 500
 
+def sendTextMessage(to, message):
+    try:
+        url = "https://gate.whapi.cloud/messages/text"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {os.getenv('WHAPI_TOKEN')}",
+            "content-type": "application/json"
+        }
+        payload = {
+            "typing_time": 0,
+            "to": to,
+            "body": message
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print("✅ WhatsApp enviado")
+        return response.json()
+    except Exception as e:
+        print("❌ Error al enviar por WhatsApp:", e)
+        return {"success": False, "error": str(e)}
+
+def enviar_resumen_a_wix(wix_url, _id, resumen):
+    try:
+        payload = {
+            "_id": _id,
+            "resumen": resumen
+        }
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(wix_url, json=payload, headers=headers)
+        print("📡 Respuesta de Wix - status:", response.status_code)
+        print("📡 Respuesta de Wix - body:", response.text)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print("❌ Error al enviar resumen a Wix:", str(e))
+        return {"success": False, "error": str(e)}
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 5001))  # Lee el puerto de la variable de entorno
+    port = int(os.environ.get('PORT', 5001))
     app.run(debug=True, host="0.0.0.0", port=port)

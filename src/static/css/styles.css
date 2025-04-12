@@ -200,7 +200,7 @@
     bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.85); /* blanco semitransparente */
+    background: rgba(255, 255, 255, 0.85);
     border-radius: 16px;
     padding: 20px 30px;
     display: flex;
@@ -209,7 +209,13 @@
     font-family: 'IBM Plex Sans', sans-serif;
     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     z-index: 10000;
-  }
+
+    /* ✅ Nuevo: para móviles */
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
   
   .timer-wrapper h2 {
     font-size: 1.4rem;

@@ -223,12 +223,26 @@ dataChannel.addEventListener('message', async (ev) => {
             const match = respuesta.match(empresaRegex);
             const nombreEmpresa = match ? match[1].trim() : null;
 
+            // Agregar la respuesta al array de respuestas
             respuestas.push({
                 textoCompleto: respuesta,
                 nombreEmpresa: nombreEmpresa || "No especificado"
             });
 
             console.log("📋 Respuestas actualizadas:", respuestas);
+        }
+
+        // Si el mensaje contiene un resumen, agregarlo al array
+        if (msg.type === "response.summary") {
+            const resumen = msg.text.trim();
+            console.log("📥 Resumen recibido:", resumen);
+
+            respuestas.push({
+                textoCompleto: resumen,
+                tipo: "resumen"
+            });
+
+            console.log("📋 Respuestas actualizadas con resumen:", respuestas);
         }
 
         // ...existing code for handling other message types...
@@ -280,7 +294,7 @@ dataChannel.addEventListener('message', async (ev) => {
 
 
     } catch (error) {
-        console.error('❌ Error manejando mensaje:', error);
+        console.error('❌ Error manejando mensaje:', error);    
     }
 });
 

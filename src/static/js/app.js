@@ -204,63 +204,85 @@ async function initOpenAIRealtime() {
         });
 
 
-        // Mensajes recibidos desde OpenAI
-        dataChannel.addEventListener('message', async (ev) => {
-            try {
-                const msg = JSON.parse(ev.data);
-                console.log("Mensaje recibido:", msg);
+// Array para almacenar las respuestas
+let respuestas = [];
+
+// Modificar el manejo de mensajes recibidos desde OpenAI
+dataChannel.addEventListener('message', async (ev) => {
+    try {
+        const msg = JSON.parse(ev.data);
+        console.log("Mensaje recibido:", msg);
+
+        // Si el mensaje contiene información relevante, procesarla
+        if (msg.type === "response.text") {
+            const respuesta = msg.text.trim();
+            console.log("📥 Respuesta procesada:", respuesta);
+
+            // Extraer el nombre de la empresa (si aplica) y agregar al array
+            const empresaRegex = /empresa\s(?:se\sllama|es)\s(.+?)(\.|$)/i;
+            const match = respuesta.match(empresaRegex);
+            const nombreEmpresa = match ? match[1].trim() : null;
+
+            respuestas.push({
+                textoCompleto: respuesta,
+                nombreEmpresa: nombreEmpresa || "No especificado"
+            });
+
+            console.log("📋 Respuestas actualizadas:", respuestas);
+        }
+
+        // ...existing code for handling other message types...
+
+        // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
+        if (msg.type === "session.created" && chatbotData) {
+            const systemInstructions = `
+            Eres un asistente de salud ocupacional de BSL. Pregúntale al paciente sobre su historial médico.
+            El paciente se llama ${chatbotData.primerNombre?.trim() || "el paciente"}.
+            Historial de salud: ${chatbotData.encuestaSalud?.join(", ") || "no especificado"}.
+            Antecedentes familiares: ${chatbotData.antecedentesFamiliares?.join(", ") || "no especificados"}.
+            
+            Pregúntale sobre el historial de salud y los antecedentes familiares que anotó en el formulario. Si no anotó ninguno, no lo menciones.
+            pregúntale por los últimos 2 trabajos que tuvo y si tiene alguna enfermedad a partir de ellos.
+            Pregúntale para que entidad o empresa está solicitando el certificado médico.
+            No te extiendas demasiado. La entrevista no debe durar más de 2 minutos.
+            Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
+            Al finalizar la entrevista, genera un resumen completo de la conversación y llámalo como función sendEmail({ message: "resumen" }) para enviarlo por correo.
+                                   `;
+            const sessionUpdate = {
+                type: "session.update",
+                session: { instructions: systemInstructions }
+            };
+            dataChannel.send(JSON.stringify(sessionUpdate));
+            console.log("📨 Instrucciones personalizadas enviadas");
+        }
 
 
-                // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
-                if (msg.type === "session.created" && chatbotData) {
-                    const systemInstructions = `
-                    Eres un asistente de salud ocupacional de BSL. Pregúntale al paciente sobre su historial médico.
-                    El paciente se llama ${chatbotData.primerNombre?.trim() || "el paciente"}.
-                    Historial de salud: ${chatbotData.encuestaSalud?.join(", ") || "no especificado"}.
-                    Antecedentes familiares: ${chatbotData.antecedentesFamiliares?.join(", ") || "no especificados"}.
-                    
-                    Pregúntale sobre el historial de salud y los antecedentes familiares que anotó en el formulario. Si no anotó ninguno, no lo menciones.
-                    pregúntale por los últimos 2 trabajos que tuvo y si tiene alguna enfermedad a partir de ellos.
-                    Pregúntale para que entidad o empresa está solicitando el certificado médico.
-                    No te extiendas demasiado. La entrevista no debe durar más de 2 minutos.
-                    Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
-                    Al finalizar la entrevista, genera un resumen completo de la conversación y llámalo como función sendEmail({ message: "resumen" }) para enviarlo por correo.
-                                       `;
-                    const sessionUpdate = {
-                        type: "session.update",
-                        session: { instructions: systemInstructions }
-                    };
-                    dataChannel.send(JSON.stringify(sessionUpdate));
-                    console.log("📨 Instrucciones personalizadas enviadas");
-                }
+        // Manejo de funciones definidas
+        if (msg.type === 'response.function_call_arguments.done') {
+            const fn = fns[msg.name];
+            if (fn !== undefined) {
+                console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
+                const args = JSON.parse(msg.arguments);
+                const result = await fn(args);
 
 
-                // Manejo de funciones definidas
-                if (msg.type === 'response.function_call_arguments.done') {
-                    const fn = fns[msg.name];
-                    if (fn !== undefined) {
-                        console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
-                        const args = JSON.parse(msg.arguments);
-                        const result = await fn(args);
-
-
-                        const event = {
-                            type: 'conversation.item.create',
-                            item: {
-                                type: 'function_call_output',
-                                call_id: msg.call_id,
-                                output: JSON.stringify(result)
-                            }
-                        };
-                        dataChannel.send(JSON.stringify(event));
+                const event = {
+                    type: 'conversation.item.create',
+                    item: {
+                        type: 'function_call_output',
+                        call_id: msg.call_id,
+                        output: JSON.stringify(result)
                     }
-                }
-
-
-            } catch (error) {
-                console.error('❌ Error manejando mensaje:', error);
+                };
+                dataChannel.send(JSON.stringify(event));
             }
-        });
+        }
+
+
+    } catch (error) {
+        console.error('❌ Error manejando mensaje:', error);
+    }
+});
 
 
         // Crear y enviar offer SDP

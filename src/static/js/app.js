@@ -74,8 +74,8 @@ async function startCall() {
     startBeeping();
     endCallBtn.disabled = true; // ⛔ Desactivar botón hasta tener resumen
     await initOpenAIRealtime();
-  }
-  
+}
+
 
 
 function startBeeping() {
@@ -92,7 +92,7 @@ function stopBeeping() {
 
 
 const fns = {
-    
+
     sendEmail: async ({ message }) => {
         try {
             resumenGlobal = message;
@@ -144,7 +144,7 @@ async function initOpenAIRealtime() {
                 startTimer();
                 endCallBtn.style.display = 'none';
             }
-            
+
         };
 
 
@@ -172,7 +172,7 @@ async function initOpenAIRealtime() {
                 session: {
                     modalities: ['text', 'audio'],
                     tools: [
-                        
+
                         {
                             type: 'function',
                             name: 'sendEmail',
@@ -204,52 +204,83 @@ async function initOpenAIRealtime() {
         });
 
 
-// Array para almacenar las respuestas
-let respuestas = [];
+        // Array para almacenar las respuestas
+        let respuestas = [];
 
-// Modificar el manejo de mensajes recibidos desde OpenAI
-dataChannel.addEventListener('message', async (ev) => {
-    try {
-        const msg = JSON.parse(ev.data);
-        console.log("Mensaje recibido:", msg);
+        // Modificar el manejo de mensajes recibidos desde OpenAI
+        dataChannel.addEventListener('message', async (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+                console.log("Mensaje recibido:", msg);
 
-        // Si el mensaje contiene información relevante, procesarla
-        if (msg.type === "response.text") {
-            const respuesta = msg.text.trim();
-            console.log("📥 Respuesta procesada:", respuesta);
+                // Si el mensaje contiene información relevante, procesarla
+                if (msg.type === "response.text") {
+                    const respuesta = msg.text.trim();
+                    console.log("📥 Respuesta procesada:", respuesta);
 
-            // Extraer el nombre de la empresa (si aplica) y agregar al array
-            const empresaRegex = /empresa\s(?:se\sllama|es)\s(.+?)(\.|$)/i;
-            const match = respuesta.match(empresaRegex);
-            const nombreEmpresa = match ? match[1].trim() : null;
+                    // Extraer el nombre de la empresa (si aplica) y agregar al array
+                    const empresaRegex = /empresa\s(?:se\sllama|es)\s(.+?)(\.|$)/i;
+                    const match = respuesta.match(empresaRegex);
+                    const nombreEmpresa = match ? match[1].trim() : null;
 
-            // Agregar la respuesta al array de respuestas
-            respuestas.push({
-                textoCompleto: respuesta,
-                nombreEmpresa: nombreEmpresa || "No especificado"
-            });
+                    // Agregar la respuesta al array de respuestas
+                    respuestas.push({
+                        textoCompleto: respuesta,
+                        nombreEmpresa: nombreEmpresa || "No especificado"
+                    });
 
-            console.log("📋 Respuestas actualizadas:", respuestas);
-        }
+                    console.log("📋 Respuestas actualizadas:", respuestas);
+                }
 
-        // Si el mensaje contiene un resumen, agregarlo al array
-        if (msg.type === "response.summary") {
-            const resumen = msg.text.trim();
-            console.log("📥 Resumen recibido:", resumen);
+                // Si el mensaje contiene un resumen, agregarlo al array
+                if (msg.type === "response.summary") {
+                    let resumen = msg.text.trim();
 
-            respuestas.push({
-                textoCompleto: resumen,
-                tipo: "resumen"
-            });
+                    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
+                    const puntos = resumen
+                        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
+                        .map(frase => frase.trim().replace(/\.$/, ''))
+                        .filter(f => f.length > 0)
+                        .map(frase => `- ${frase}.`)
+                        .join('\n');
 
-            console.log("📋 Respuestas actualizadas con resumen:", respuestas);
-        }
+                    resumen = `Entrevista con ${nombrePaciente}:\n${puntos}`;
+                    console.log("📥 Resumen recibido:", resumen);
 
-        // ...existing code for handling other message types...
+                    respuestas.push({
+                        textoCompleto: resumen,
+                        tipo: "resumen"
+                    });
 
-        // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
-        if (msg.type === "session.created" && chatbotData) {
-            const systemInstructions = `
+                    // 👉 Guardamos resumen global y mostramos botón
+                    resumenGlobal = resumen;
+                    endCallBtn.style.display = 'block';
+
+                    // 👉 Llamamos a la función principal que hace todo
+                    await fns.sendEmail({ message: resumen });
+
+                    // 👉 También lo guardamos en la base de datos de Wix
+                    if (chatbotData?._id) {
+                        await fetch('https://www.bsl.com.co/_functions/updateResumenChatbot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                _id: chatbotData._id,
+                                resumen
+                            })
+                        });
+                    }
+
+                    console.log("✅ Resumen enviado y guardado correctamente.");
+                }
+
+
+
+                // ...existing code for handling other message types...
+
+                // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
+                if (msg.type === "session.created" && chatbotData) {
+                    const systemInstructions = `
             Eres un asistente de salud ocupacional de BSL. Pregúntale al paciente sobre su historial médico.
             El paciente se llama ${chatbotData.primerNombre?.trim() || "el paciente"}.
             Historial de salud: ${chatbotData.encuestaSalud?.join(", ") || "no especificado"}.
@@ -262,41 +293,41 @@ dataChannel.addEventListener('message', async (ev) => {
             Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
             Al finalizar la entrevista, genera un resumen completo de la conversación y llámalo como función sendEmail({ message: "resumen" }) para enviarlo por correo.
                                    `;
-            const sessionUpdate = {
-                type: "session.update",
-                session: { instructions: systemInstructions }
-            };
-            dataChannel.send(JSON.stringify(sessionUpdate));
-            console.log("📨 Instrucciones personalizadas enviadas");
-        }
+                    const sessionUpdate = {
+                        type: "session.update",
+                        session: { instructions: systemInstructions }
+                    };
+                    dataChannel.send(JSON.stringify(sessionUpdate));
+                    console.log("📨 Instrucciones personalizadas enviadas");
+                }
 
 
-        // Manejo de funciones definidas
-        if (msg.type === 'response.function_call_arguments.done') {
-            const fn = fns[msg.name];
-            if (fn !== undefined) {
-                console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
-                const args = JSON.parse(msg.arguments);
-                const result = await fn(args);
+                // Manejo de funciones definidas
+                if (msg.type === 'response.function_call_arguments.done') {
+                    const fn = fns[msg.name];
+                    if (fn !== undefined) {
+                        console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
+                        const args = JSON.parse(msg.arguments);
+                        const result = await fn(args);
 
 
-                const event = {
-                    type: 'conversation.item.create',
-                    item: {
-                        type: 'function_call_output',
-                        call_id: msg.call_id,
-                        output: JSON.stringify(result)
+                        const event = {
+                            type: 'conversation.item.create',
+                            item: {
+                                type: 'function_call_output',
+                                call_id: msg.call_id,
+                                output: JSON.stringify(result)
+                            }
+                        };
+                        dataChannel.send(JSON.stringify(event));
                     }
-                };
-                dataChannel.send(JSON.stringify(event));
+                }
+
+
+            } catch (error) {
+                console.error('❌ Error manejando mensaje:', error);
             }
-        }
-
-
-    } catch (error) {
-        console.error('❌ Error manejando mensaje:', error);    
-    }
-});
+        });
 
 
         // Crear y enviar offer SDP
@@ -410,16 +441,16 @@ function stopTimer() {
 callButton.addEventListener('click', startCall);
 endCallBtn.addEventListener('click', async () => {
     if (resumenGlobal) {
-      console.log("📨 Enviando resumen antes de finalizar...");
-      await fns.sendEmail({ message: resumenGlobal });
+        console.log("📨 Enviando resumen antes de finalizar...");
+        await fns.sendEmail({ message: resumenGlobal });
     } else {
-      console.warn("⚠️ No hay resumen para enviar.");
+        console.warn("⚠️ No hay resumen para enviar.");
     }
     endCall(); // Luego sí finaliza la llamada
-  });
-  
+});
 
-  async function sendEmail(message) {
+
+async function sendEmail(message) {
     const loader = document.querySelector('.loader');
     loader.style.display = 'block';
 

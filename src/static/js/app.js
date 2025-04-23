@@ -291,7 +291,10 @@ async function initOpenAIRealtime() {
             Pregúntale para que entidad o empresa está solicitando el certificado médico.
             No te extiendas demasiado. La entrevista no debe durar más de 2 minutos.
             Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
-            Al finalizar la entrevista, genera un resumen completo de la conversación y llámalo como función sendEmail({ message: "resumen" }) para enviarlo por correo.
+            Al finalizar la entrevista:
+            - Genera un resumen completo de la conversación.
+            - Llama la función sendEmail({ message: "resumen" }) para enviarlo por correo.
+            - Dile al paciente: “Estoy generando tu resumen. Por favor, no cierres esta ventana ni finalices la conversación hasta que veas el mensaje de que tu resumen fue enviado.”
                                    `;
                     const sessionUpdate = {
                         type: "session.update",

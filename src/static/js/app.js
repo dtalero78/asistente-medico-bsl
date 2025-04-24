@@ -287,12 +287,20 @@ async function initOpenAIRealtime() {
             Antecedentes familiares: ${chatbotData.antecedentesFamiliares?.join(", ") || "no especificados"}.
             
             Pregúntale sobre el historial de salud y los antecedentes familiares que anotó en el formulario. Si no anotó ninguno, no lo menciones.
-            pregúntale por los últimos 2 trabajos que tuvo y si tiene alguna enfermedad a partir de ellos.
+            pregúntale por el último trabajo que tuvo y si tiene alguna enfermedad a partir de el.
             Pregúntale para que entidad o empresa está solicitando el certificado médico.
             No te extiendas demasiado. La entrevista no debe durar más de 2 minutos.
             Si te pregunta algo relacionado sobre la expedición de su certificado médico, dile que un asesor lo contactará para enviárselo
+            
             Al finalizar la entrevista:
-            - Genera un resumen completo de la conversación.
+            - Genera un resumen completo de la conversación. Ese resúmen sepáralo por puntos y que sea breve. Por ejemplo:
+                    Resumen de la entrevista:
+                    Paciente: Nombre.
+                    Historial de salud: Usa anteojos para presbicia.
+                    Antecedentes familiares: Diabetes, Hipertensión.
+                    Ocupación anterior: Enfermera, sin enfermedades derivadas del trabajo.
+                    Empresa solicitante del certificado médico: Sitel.
+
             - Llama la función sendEmail({ message: "resumen" }) para enviarlo por correo.
             - Dile al paciente: “Estoy generando tu resumen. Por favor, no cierres esta ventana ni finalices la conversación hasta que veas el mensaje de que tu resumen fue enviado.”
                                    `;

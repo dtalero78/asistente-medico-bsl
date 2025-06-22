@@ -63,9 +63,13 @@ def send_email():
 
         print("✅ Correo enviado")
 
-        # Enviar por WhatsApp
-        to = "573008021701"
-        sendTextMessage(to, message)
+        # ----------- AQUÍ VA EL ENVÍO POR WHATSAPP, BIEN INDENTADO ----------
+        to = data.get('to')
+        if not to:
+            print("❌ No se proporcionó número de WhatsApp del paciente.")
+        else:
+            sendTextMessage(to, message)
+        # -------------------------------------------------------------------
 
         # Guardar resumen en Wix si hay _id
         if _id:

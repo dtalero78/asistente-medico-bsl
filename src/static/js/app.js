@@ -237,19 +237,19 @@ async function initOpenAIRealtime() {
                 }
 
                 // Si el mensaje contiene un resumen, agregarlo al array
-if (msg.type === "response.summary") {
-    let resumen = msg.text.trim();
+                if (msg.type === "response.summary") {
+                    let resumen = msg.text.trim();
 
-    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
-    const saludo = `Hola ${nombrePaciente}, recibí este resumen de tu llamada y quiero confirmarlo contigo\n\n`;
-    const puntos = resumen
-        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
-        .map(frase => frase.trim().replace(/\.$/, ''))
-        .filter(f => f.length > 0)
-        .map(frase => `- ${frase}.`)
-        .join('\n');
+                    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
+                    const saludo = `Hola ${nombrePaciente}, recibí este resumen de tu llamada y quiero confirmarlo contigo\n\n`;
+                    const puntos = resumen
+                        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
+                        .map(frase => frase.trim().replace(/\.$/, ''))
+                        .filter(f => f.length > 0)
+                        .map(frase => `- ${frase}.`)
+                        .join('\n');
 
-    resumen = `${saludo}:\n${puntos}`;
+                    resumen = `${saludo}:\n${puntos}`;
                     console.log("📥 Resumen recibido:", resumen);
 
                     respuestas.push({
@@ -475,11 +475,16 @@ async function sendEmail(message) {
 
         console.log("🧾 Enviando resumen con _id:", _id, "y mensaje:", message);
 
+        const celular = chatbotData?.celular?.replace(/\s/g, '').replace(/\+/g, '');
+        let to = celular;
+        if (to && !to.startsWith('57')) to = '57' + to;
+
         const response = await fetch('/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, _id })  // ✅ Enviar _id correctamente
+            body: JSON.stringify({ message, _id, to })  // ✅ Agregar "to" (número de paciente)
         });
+
 
         const result = await response.json();
         console.log("📬 Respuesta del backend:", result);

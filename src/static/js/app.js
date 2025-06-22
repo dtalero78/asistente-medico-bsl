@@ -90,23 +90,15 @@ const fns = {
         try {
             resumenGlobal = message;
             endCallBtn.style.display = 'block';
-            await sendEmail(message);
-
-            if (chatbotData?.celular) {
-                let to = chatbotData.celular.replace(/\s/g, '').replace(/\+/g, '');
-                if (!to.startsWith('57')) {
-                    to = '57' + to;
-                }
-                await sendTextMessage(to, message);
-            }
-
-            endCall();
+            await sendEmail(message); // <-- Llama solo a tu backend
+            endCall();                // <-- Siempre cierra
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
         }
     }
 };
+
 
 async function initOpenAIRealtime() {
     try {

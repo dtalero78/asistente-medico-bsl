@@ -88,6 +88,12 @@ def send_email():
         return jsonify({'error': f"Email error: {str(e)}"}), 500
 
 def sendTextMessage(to, message):
+    # --- Formatea el número ---
+    to = str(to).replace(' ', '').replace('+', '')
+    if not to.startswith('57'):
+        to = '57' + to
+    # --------------------------
+
     url = "https://gate.whapi.cloud/messages/text"
     headers = {
         "accept": "application/json",
@@ -108,7 +114,6 @@ def sendTextMessage(to, message):
         return response.json()
     except Exception as e:
         print("❌ Error al enviar por WhatsApp:", e)
-        # Imprimir respuesta de error si está disponible
         if 'response' in locals():
             print("🔴 Respuesta completa Whapi (error):", response.text)
         return {"success": False, "error": str(e), "body": response.text if 'response' in locals() else ""}

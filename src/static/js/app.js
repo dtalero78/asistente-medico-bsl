@@ -1,8 +1,6 @@
 //DEFINITIVO!!!!
 
 
-
-
 let chatbotData = null;
 let resumenGlobal = ""; // 👈 Puedes definir esto fuera de la función, arriba en app.js
 
@@ -41,7 +39,7 @@ async function getChatbotData() {
 
 
 // Audio setup
-const beepSound = new Audio('static/assets/beep.mp3');
+const beepSound = new Audio('/static/assets/hola.mp3');
 let beepInterval;
 
 
@@ -88,6 +86,15 @@ function startBeeping() {
 
 function stopBeeping() {
     clearInterval(beepInterval);
+}
+
+//Reproducir "HOLA"
+function reproducirBeep() {
+    const beep = document.getElementById('beepSound');
+    if (beep) {
+        beep.currentTime = 0;
+        beep.play();
+    }
 }
 
 
@@ -145,6 +152,8 @@ async function initOpenAIRealtime() {
                 callStatus.textContent = 'Connected';
                 timer.style.display = 'block';
                 speakNow.style.display = 'block'; // ✅ Mostrar solo cuando se establece conexión
+                beepSound.currentTime = 0;
+                beepSound.play();
                 startTimer();
                 endCallBtn.style.display = 'none';
             }

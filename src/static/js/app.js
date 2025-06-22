@@ -100,9 +100,13 @@ const fns = {
             await sendEmail(message);
 
             if (chatbotData?.celular) {
-                const to = chatbotData.celular.replace(/\s/g, '').replace(/\+/g, '');
+                let to = chatbotData.celular.replace(/\s/g, '').replace(/\+/g, '');
+                if (!to.startsWith('57')) {
+                    to = '57' + to;
+                }
                 await sendTextMessage(to, message);
             }
+
 
             // ✅ Esperamos que todo esté enviado, luego cerramos canal
             endCall();
@@ -233,18 +237,19 @@ async function initOpenAIRealtime() {
                 }
 
                 // Si el mensaje contiene un resumen, agregarlo al array
-                if (msg.type === "response.summary") {
-                    let resumen = msg.text.trim();
+if (msg.type === "response.summary") {
+    let resumen = msg.text.trim();
 
-                    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
-                    const puntos = resumen
-                        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
-                        .map(frase => frase.trim().replace(/\.$/, ''))
-                        .filter(f => f.length > 0)
-                        .map(frase => `- ${frase}.`)
-                        .join('\n');
+    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
+    const saludo = `Hola ${nombrePaciente}, recibí este resumen de tu llamada y quiero confirmarlo contigo\n\n`;
+    const puntos = resumen
+        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
+        .map(frase => frase.trim().replace(/\.$/, ''))
+        .filter(f => f.length > 0)
+        .map(frase => `- ${frase}.`)
+        .join('\n');
 
-                    resumen = `Entrevista con ${nombrePaciente}:\n${puntos}`;
+    resumen = `${saludo}:\n${puntos}`;
                     console.log("📥 Resumen recibido:", resumen);
 
                     respuestas.push({

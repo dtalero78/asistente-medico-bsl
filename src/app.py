@@ -84,25 +84,31 @@ def send_email():
         return jsonify({'error': f"Email error: {str(e)}"}), 500
 
 def sendTextMessage(to, message):
+    url = "https://gate.whapi.cloud/messages/text"
+    headers = {
+        "accept": "application/json",
+        "authorization": f"Bearer {os.getenv('WHAPI_TOKEN')}",
+        "content-type": "application/json"
+    }
+    payload = {
+        "typing_time": 0,
+        "to": to,
+        "body": message
+    }
     try:
-        url = "https://gate.whapi.cloud/messages/text"
-        headers = {
-            "accept": "application/json",
-            "authorization": f"Bearer {os.getenv('WHAPI_TOKEN')}",
-            "content-type": "application/json"
-        }
-        payload = {
-            "typing_time": 0,
-            "to": to,
-            "body": message
-        }
         response = requests.post(url, json=payload, headers=headers)
+        print("📡 Código de respuesta Whapi:", response.status_code)
+        print("📡 Body de respuesta Whapi:", response.text)
         response.raise_for_status()
         print("✅ WhatsApp enviado")
         return response.json()
     except Exception as e:
         print("❌ Error al enviar por WhatsApp:", e)
-        return {"success": False, "error": str(e)}
+        # Imprimir respuesta de error si está disponible
+        if 'response' in locals():
+            print("🔴 Respuesta completa Whapi (error):", response.text)
+        return {"success": False, "error": str(e), "body": response.text if 'response' in locals() else ""}
+
 
 def enviar_resumen_a_wix(wix_url, _id, resumen):
     try:

@@ -165,143 +165,141 @@ async function initOpenAIRealtime() {
         }
 
 
-    };
 
-
-    // Configuración de audio
-    const audioElement = document.createElement("audio");
-    audioElement.autoplay = true;
-    peerConnection.ontrack = event => {
-        audioElement.srcObject = event.streams[0];
-    };
-
-
-    const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    peerConnection.addTrack(mediaStream.getTracks()[0]);
-
-
-    // Crear canal de datos
-    dataChannel = peerConnection.createDataChannel('response');
-
-
-    // Función para registrar tools disponibles
-    function configureData() {
-        console.log('Configuring data channel');
-        const event = {
-            type: 'session.update',
-            session: {
-                modalities: ['text', 'audio'],
-                tools: [
-
-                    {
-                        type: 'function',
-                        name: 'sendEmail',
-                        description: 'Envía un resumen por correo cuando el paciente se despida',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                message: {
-                                    type: 'string',
-                                    description: 'Email body content'
-                                }
-                            },
-                            required: ['message']
-                        }
-                    },
-
-
-                ]
-            }
+        // Configuración de audio
+        const audioElement = document.createElement("audio");
+        audioElement.autoplay = true;
+        peerConnection.ontrack = event => {
+            audioElement.srcObject = event.streams[0];
         };
-        dataChannel.send(JSON.stringify(event));
-    }
 
 
-    // Al abrir el dataChannel
-    dataChannel.addEventListener('open', () => {
-        console.log('✅ Data channel opened');
-        configureData();
-    });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        peerConnection.addTrack(mediaStream.getTracks()[0]);
 
 
-    // Array para almacenar las respuestas
-    let respuestas = [];
+        // Crear canal de datos
+        dataChannel = peerConnection.createDataChannel('response');
 
-    // Modificar el manejo de mensajes recibidos desde OpenAI
-    dataChannel.addEventListener('message', async (ev) => {
-        try {
-            const msg = JSON.parse(ev.data);
-            console.log("Mensaje recibido:", msg);
 
-            // Si el mensaje contiene información relevante, procesarla
-            if (msg.type === "response.text") {
-                const respuesta = msg.text.trim();
-                console.log("📥 Respuesta procesada:", respuesta);
+        // Función para registrar tools disponibles
+        function configureData() {
+            console.log('Configuring data channel');
+            const event = {
+                type: 'session.update',
+                session: {
+                    modalities: ['text', 'audio'],
+                    tools: [
 
-                // Extraer el nombre de la empresa (si aplica) y agregar al array
-                const empresaRegex = /empresa\s(?:se\sllama|es)\s(.+?)(\.|$)/i;
-                const match = respuesta.match(empresaRegex);
-                const nombreEmpresa = match ? match[1].trim() : null;
+                        {
+                            type: 'function',
+                            name: 'sendEmail',
+                            description: 'Envía un resumen por correo cuando el paciente se despida',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    message: {
+                                        type: 'string',
+                                        description: 'Email body content'
+                                    }
+                                },
+                                required: ['message']
+                            }
+                        },
 
-                // Agregar la respuesta al array de respuestas
-                respuestas.push({
-                    textoCompleto: respuesta,
-                    nombreEmpresa: nombreEmpresa || "No especificado"
-                });
 
-                console.log("📋 Respuestas actualizadas:", respuestas);
-            }
+                    ]
+                }
+            };
+            dataChannel.send(JSON.stringify(event));
+        }
 
-            // Si el mensaje contiene un resumen, agregarlo al array
-            if (msg.type === "response.summary") {
-                let resumen = msg.text.trim();
 
-                const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
-                const saludo = `Hola ${nombrePaciente}, recibí este resumen de tu llamada y quiero confirmarlo contigo\n\n`;
-                const puntos = resumen
-                    .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
-                    .map(frase => frase.trim().replace(/\.$/, ''))
-                    .filter(f => f.length > 0)
-                    .map(frase => `- ${frase}.`)
-                    .join('\n');
+        // Al abrir el dataChannel
+        dataChannel.addEventListener('open', () => {
+            console.log('✅ Data channel opened');
+            configureData();
+        });
 
-                resumen = `${saludo}:\n${puntos}`;
-                console.log("📥 Resumen recibido:", resumen);
 
-                respuestas.push({
-                    textoCompleto: resumen,
-                    tipo: "resumen"
-                });
+        // Array para almacenar las respuestas
+        let respuestas = [];
 
-                // 👉 Guardamos resumen global y mostramos botón
-                resumenGlobal = resumen;
-                endCallBtn.style.display = 'block';
+        // Modificar el manejo de mensajes recibidos desde OpenAI
+        dataChannel.addEventListener('message', async (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+                console.log("Mensaje recibido:", msg);
 
-                // 👉 Llamamos a la función principal que hace todo
-                await fns.sendEmail({ message: resumen });
+                // Si el mensaje contiene información relevante, procesarla
+                if (msg.type === "response.text") {
+                    const respuesta = msg.text.trim();
+                    console.log("📥 Respuesta procesada:", respuesta);
 
-                // 👉 También lo guardamos en la base de datos de Wix
-                if (chatbotData?._id) {
-                    await fetch('https://www.bsl.com.co/_functions/updateResumenChatbot', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            _id: chatbotData._id,
-                            resumen
-                        })
+                    // Extraer el nombre de la empresa (si aplica) y agregar al array
+                    const empresaRegex = /empresa\s(?:se\sllama|es)\s(.+?)(\.|$)/i;
+                    const match = respuesta.match(empresaRegex);
+                    const nombreEmpresa = match ? match[1].trim() : null;
+
+                    // Agregar la respuesta al array de respuestas
+                    respuestas.push({
+                        textoCompleto: respuesta,
+                        nombreEmpresa: nombreEmpresa || "No especificado"
                     });
+
+                    console.log("📋 Respuestas actualizadas:", respuestas);
                 }
 
-                console.log("✅ Resumen enviado y guardado correctamente.");
-            }
+                // Si el mensaje contiene un resumen, agregarlo al array
+                if (msg.type === "response.summary") {
+                    let resumen = msg.text.trim();
+
+                    const nombrePaciente = chatbotData?.primerNombre?.trim() || "el paciente";
+                    const saludo = `Hola ${nombrePaciente}, recibí este resumen de tu llamada y quiero confirmarlo contigo\n\n`;
+                    const puntos = resumen
+                        .split(/\. (?=[A-ZÁÉÍÓÚ])/g)
+                        .map(frase => frase.trim().replace(/\.$/, ''))
+                        .filter(f => f.length > 0)
+                        .map(frase => `- ${frase}.`)
+                        .join('\n');
+
+                    resumen = `${saludo}:\n${puntos}`;
+                    console.log("📥 Resumen recibido:", resumen);
+
+                    respuestas.push({
+                        textoCompleto: resumen,
+                        tipo: "resumen"
+                    });
+
+                    // 👉 Guardamos resumen global y mostramos botón
+                    resumenGlobal = resumen;
+                    endCallBtn.style.display = 'block';
+
+                    // 👉 Llamamos a la función principal que hace todo
+                    await fns.sendEmail({ message: resumen });
+
+                    // 👉 También lo guardamos en la base de datos de Wix
+                    if (chatbotData?._id) {
+                        await fetch('https://www.bsl.com.co/_functions/updateResumenChatbot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                _id: chatbotData._id,
+                                resumen
+                            })
+                        });
+                    }
+
+                    console.log("✅ Resumen enviado y guardado correctamente.");
+                }
 
 
 
-            // ...existing code for handling other message types...
+                // ...existing code for handling other message types...
 
-            // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
-            if (msg.type === "session.created" && chatbotData) {
-                const systemInstructions = `
+                // Inyectar instrucciones personalizadas si llega el evento de creación de sesión
+                if (msg.type === "session.created" && chatbotData) {
+                    const systemInstructions = `
             Eres un asistente de salud ocupacional de BSL. Pregúntale al paciente sobre su historial médico.
             El paciente se llama ${chatbotData.primerNombre?.trim() || "el paciente"}.
             Historial de salud: ${chatbotData.encuestaSalud?.join(", ") || "no especificado"}.
@@ -325,73 +323,73 @@ async function initOpenAIRealtime() {
             - Llama la función sendEmail({ message: "resumen" }) para enviarlo por correo.
             - Dile al paciente: “Estoy generando tu resumen. Por favor, no cierres esta ventana ni finalices la conversación hasta que veas el mensaje de que tu resumen fue enviado.”
                                    `;
-                const sessionUpdate = {
-                    type: "session.update",
-                    session: { instructions: systemInstructions }
-                };
-                dataChannel.send(JSON.stringify(sessionUpdate));
-                console.log("📨 Instrucciones personalizadas enviadas");
-            }
-
-
-            // Manejo de funciones definidas
-            if (msg.type === 'response.function_call_arguments.done') {
-                const fn = fns[msg.name];
-                if (fn !== undefined) {
-                    console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
-                    const args = JSON.parse(msg.arguments);
-                    const result = await fn(args);
-
-
-                    const event = {
-                        type: 'conversation.item.create',
-                        item: {
-                            type: 'function_call_output',
-                            call_id: msg.call_id,
-                            output: JSON.stringify(result)
-                        }
+                    const sessionUpdate = {
+                        type: "session.update",
+                        session: { instructions: systemInstructions }
                     };
-                    dataChannel.send(JSON.stringify(event));
+                    dataChannel.send(JSON.stringify(sessionUpdate));
+                    console.log("📨 Instrucciones personalizadas enviadas");
                 }
+
+
+                // Manejo de funciones definidas
+                if (msg.type === 'response.function_call_arguments.done') {
+                    const fn = fns[msg.name];
+                    if (fn !== undefined) {
+                        console.log(`🔧 Ejecutando función ${msg.name} con argumentos:`, msg.arguments);
+                        const args = JSON.parse(msg.arguments);
+                        const result = await fn(args);
+
+
+                        const event = {
+                            type: 'conversation.item.create',
+                            item: {
+                                type: 'function_call_output',
+                                call_id: msg.call_id,
+                                output: JSON.stringify(result)
+                            }
+                        };
+                        dataChannel.send(JSON.stringify(event));
+                    }
+                }
+
+
+            } catch (error) {
+                console.error('❌ Error manejando mensaje:', error);
             }
+        });
 
 
-        } catch (error) {
-            console.error('❌ Error manejando mensaje:', error);
-        }
-    });
+        // Crear y enviar offer SDP
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
 
 
-    // Crear y enviar offer SDP
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
+        const apiUrl = "https://api.openai.com/v1/realtime";
+        const model = "gpt-4o-realtime-preview-2024-12-17";
 
 
-    const apiUrl = "https://api.openai.com/v1/realtime";
-    const model = "gpt-4o-realtime-preview-2024-12-17";
+        const sdpResponse = await fetch(`${apiUrl}?model=${model}`, {
+            method: "POST",
+            body: offer.sdp,
+            headers: {
+                Authorization: `Bearer ${EPHEMERAL_KEY}`,
+                "Content-Type": "application/sdp"
+            },
+        });
 
 
-    const sdpResponse = await fetch(`${apiUrl}?model=${model}`, {
-        method: "POST",
-        body: offer.sdp,
-        headers: {
-            Authorization: `Bearer ${EPHEMERAL_KEY}`,
-            "Content-Type": "application/sdp"
-        },
-    });
+        const answer = {
+            type: "answer",
+            sdp: await sdpResponse.text(),
+        };
+        await peerConnection.setRemoteDescription(answer);
 
 
-    const answer = {
-        type: "answer",
-        sdp: await sdpResponse.text(),
-    };
-    await peerConnection.setRemoteDescription(answer);
-
-
-} catch (error) {
-    console.error("❌ Error en initOpenAIRealtime:", error);
-    endCall();
-}
+    } catch (error) {
+        console.error("❌ Error en initOpenAIRealtime:", error);
+        endCall();
+    }
 }
 
 

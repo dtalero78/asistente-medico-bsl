@@ -462,27 +462,4 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-function sendTextMessage(toNumber, messageBody) {
-    const url = "https://gate.whapi.cloud/messages/text";
-    const headers = {
-        "accept": "application/json",
-        "authorization": "Bearer due3eWCwuBM2Xqd6cPujuTRqSbMb68lt",
-        "content-type": "application/json"
-    };
-    const postData = {
-        "typing_time": 0,
-        "to": toNumber,
-        "body": messageBody
-    };
-    return fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(postData)
-    })
-        .then(response => response.json())
-        .then(json => {
-            console.log("📤 Enviado por WhatsApp:", json);
-            return json;
-        })
-        .catch(err => console.error("❌ Error enviando por WhatsApp:", err));
-}
+

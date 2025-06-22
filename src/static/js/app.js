@@ -63,7 +63,7 @@ function startBeeping() {
     beepInterval = setInterval(() => {
         beepSound.currentTime = 0;
         beepSound.play();
-    }, 1000);
+    }, 2000);
 }
 
 function stopBeeping() {
@@ -349,7 +349,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         seconds++;
         timer.textContent = formatTime(seconds);
-    }, 1000);
+    }, 2000);
 }
 
 function formatTime(seconds) {

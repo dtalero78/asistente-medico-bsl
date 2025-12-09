@@ -5,7 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
-import psycopg2
+import psycopg
 
 load_dotenv()
 
@@ -15,10 +15,10 @@ print("✅ Flask iniciado correctamente")
 
 # Conexión a PostgreSQL
 def get_db_connection():
-    return psycopg2.connect(
+    return psycopg.connect(
         host=os.getenv('DB_HOST'),
         port=os.getenv('DB_PORT'),
-        database=os.getenv('DB_NAME'),
+        dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         sslmode='require'

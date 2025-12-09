@@ -37,8 +37,8 @@ async function getChatbotData() {
     }
 
     try {
-        console.log("🔍 Obteniendo datos de CHATBOT para _id:", _id);
-        const response = await fetch(`https://www.bsl.com.co/_functions/chatbot?_id=${_id}`);
+        console.log("🔍 Obteniendo datos de paciente para _id:", _id);
+        const response = await fetch(`/api/paciente?_id=${_id}`);
         const data = await response.json();
 
         if (data.error) {
@@ -226,17 +226,6 @@ async function initOpenAIRealtime() {
                     endCallBtn.style.display = 'block';
 
                     await fns.sendEmail({ message: resumen });
-
-                    if (chatbotData?._id) {
-                        await fetch('https://www.bsl.com.co/_functions/updateResumenChatbot', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                _id: chatbotData._id,
-                                resumen
-                            })
-                        });
-                    }
 
                     console.log("✅ Resumen enviado y guardado correctamente.");
                 }

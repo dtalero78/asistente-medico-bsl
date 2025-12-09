@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
+import psycopg2
 
 load_dotenv()
 
@@ -12,9 +13,103 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 print("✅ Flask iniciado correctamente")
 
+# Conexión a PostgreSQL
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv('DB_HOST'),
+        port=os.getenv('DB_PORT'),
+        database=os.getenv('DB_NAME'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        sslmode='require'
+    )
+
+# Mapeo de columnas de salud a nombres legibles
+SALUD_COLS = {
+    'usa_anteojos': 'Usa anteojos',
+    'presion_alta': 'Presión alta',
+    'problemas_cardiacos': 'Problemas cardíacos',
+    'dolor_cabeza': 'Dolor de cabeza',
+    'dolor_espalda': 'Dolor de espalda',
+    'hernias': 'Hernias',
+    'varices': 'Várices',
+    'hepatitis': 'Hepatitis',
+    'problemas_sueno': 'Problemas de sueño',
+    'problemas_azucar': 'Problemas de azúcar',
+    'enfermedad_pulmonar': 'Enfermedad pulmonar',
+    'enfermedad_higado': 'Enfermedad del hígado',
+    'hormigueos': 'Hormigueos',
+    'cirugia_ocular': 'Cirugía ocular',
+    'cirugia_programada': 'Cirugía programada',
+    'condicion_medica': 'Condición médica',
+    'ruido_jaqueca': 'Ruido/Jaqueca',
+    'embarazo': 'Embarazo',
+    'fuma': 'Fuma',
+    'consumo_licor': 'Consumo de licor',
+    'trastorno_psicologico': 'Trastorno psicológico',
+    'sintomas_psicologicos': 'Síntomas psicológicos',
+    'diagnostico_cancer': 'Diagnóstico de cáncer',
+    'enfermedades_laborales': 'Enfermedades laborales',
+    'enfermedad_osteomuscular': 'Enfermedad osteomuscular',
+    'enfermedad_autoinmune': 'Enfermedad autoinmune'
+}
+
+# Mapeo de columnas de antecedentes familiares
+FAMILIA_COLS = {
+    'familia_diabetes': 'Diabetes',
+    'familia_hipertension': 'Hipertensión',
+    'familia_cancer': 'Cáncer',
+    'familia_infartos': 'Infartos',
+    'familia_trastornos': 'Trastornos',
+    'familia_infecciosas': 'Enfermedades infecciosas',
+    'familia_hereditarias': 'Enfermedades hereditarias',
+    'familia_geneticas': 'Enfermedades genéticas'
+}
+
 @app.route('/')
 def index():
     return render_template('call.html')
+
+@app.route('/api/paciente', methods=['GET'])
+def get_paciente():
+    _id = request.args.get('_id')
+    if not _id:
+        return jsonify({'error': 'Falta el parámetro _id'}), 400
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Obtener todas las columnas necesarias de formularios
+        columns = ['primer_nombre', 'celular'] + list(SALUD_COLS.keys()) + list(FAMILIA_COLS.keys())
+        columns_str = ', '.join(columns)
+
+        cur.execute(f'SELECT {columns_str} FROM formularios WHERE wix_id = %s ORDER BY id DESC LIMIT 1', (_id,))
+        row = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        if not row:
+            return jsonify({'error': 'Paciente no encontrado'}), 404
+
+        # Convertir a diccionario
+        row_dict = dict(zip(columns, row))
+
+        # Construir arrays de salud y antecedentes familiares
+        encuestaSalud = [nombre for col, nombre in SALUD_COLS.items() if row_dict.get(col) == 'SI']
+        antecedentesFamiliares = [nombre for col, nombre in FAMILIA_COLS.items() if row_dict.get(col) == 'SI']
+
+        return jsonify({
+            'primerNombre': row_dict.get('primer_nombre') or '',
+            'celular': row_dict.get('celular') or '',
+            'encuestaSalud': encuestaSalud,
+            'antecedentesFamiliares': antecedentesFamiliares
+        })
+
+    except Exception as e:
+        print(f"❌ Error en /api/paciente: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/session', methods=['GET'])
 def get_session():
@@ -71,16 +166,15 @@ def send_email():
             sendTextMessage(to, message)
         # -------------------------------------------------------------------
 
-        # Guardar resumen en Wix si hay _id
+        # Guardar resumen en PostgreSQL si hay _id
         if _id:
-            wix_url = "https://www.bsl.com.co/_functions/actualizarResumen"
-            resultado_wix = enviar_resumen_a_wix(wix_url, _id, message)
-            print("📤 Resultado al guardar en Wix:", resultado_wix)
+            resultado_pg = guardar_resumen_postgres(_id, message)
+            print("📤 Resultado al guardar en PostgreSQL:", resultado_pg)
 
-        print("✅ Envío completo: email, WhatsApp, y Wix")
+        print("✅ Envío completo: email, WhatsApp, y PostgreSQL")
         return jsonify({
             'success': True,
-            'message': 'Resumen enviado por email, WhatsApp y guardado en Wix'
+            'message': 'Resumen enviado por email, WhatsApp y guardado en PostgreSQL'
         })
 
     except Exception as e:
@@ -119,23 +213,22 @@ def sendTextMessage(to, message):
         return {"success": False, "error": str(e), "body": response.text if 'response' in locals() else ""}
 
 
-def enviar_resumen_a_wix(wix_url, _id, resumen):
+def guardar_resumen_postgres(_id, resumen):
     try:
-        payload = {
-            "_id": _id,
-            "resumen": resumen
-        }
-        headers = {
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(wix_url, json=payload, headers=headers)
-        print("📡 Respuesta de Wix - status:", response.status_code)
-        print("📡 Respuesta de Wix - body:", response.text)
-        response.raise_for_status()
-        return response.json()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE "HistoriaClinica" SET "resumenLlamada" = %s WHERE _id = %s',
+            (resumen, _id)
+        )
+        conn.commit()
+        rows_affected = cur.rowcount
+        cur.close()
+        conn.close()
+        print(f"📡 Resumen guardado en PostgreSQL - filas afectadas: {rows_affected}")
+        return {"success": True, "rows_affected": rows_affected}
     except Exception as e:
-        print("❌ Error al enviar resumen a Wix:", str(e))
+        print("❌ Error al guardar resumen en PostgreSQL:", str(e))
         return {"success": False, "error": str(e)}
 
 if __name__ == '__main__':

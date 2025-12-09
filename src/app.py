@@ -116,7 +116,7 @@ def get_session():
     try:
         url = "https://api.openai.com/v1/realtime/sessions"
         payload = {
-            "model": "gpt-4o-realtime-preview-2024-12-17",
+            "model": "gpt-realtime",
             "modalities": ["audio", "text"],
             "voice": "ash",
             "instructions": "Eres un asistente médico de BSL"

@@ -307,6 +307,11 @@ Cuidamos de ti y tu bienestar laboral 💙"""
     sendTextMessage(to, mensaje)
     print("✅ Sugerencias enviadas por WhatsApp")
 
+    # 3. Enviar mensaje sobre el certificado
+    mensaje_certificado = "📄 En un momento llegará tu certificado."
+    sendTextMessage(to, mensaje_certificado)
+    print("✅ Mensaje de certificado enviado por WhatsApp")
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     app.run(debug=True, host="0.0.0.0", port=port)

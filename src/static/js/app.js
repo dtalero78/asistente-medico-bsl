@@ -11,9 +11,14 @@ let beepInterval;
 // Global variables
 let peerConnection = null;
 let dataChannel = null;
+let mediaStream = null;
 let timerInterval = null;
+let callTimeout = null;
 let seconds = 0;
 let isConnected = false;
+
+// Configuración de timeout (10 minutos máximo por llamada)
+const MAX_CALL_DURATION_MS = 10 * 60 * 1000;
 
 // DOM elements
 const ringBox = document.getElementById('ringBox');
@@ -111,10 +116,12 @@ async function initOpenAIRealtime() {
 
         peerConnection = new RTCPeerConnection();
 
-        // 🟢 Handler CORRECTO para la conexión
+        // 🟢 Handler para todos los estados de conexión
         peerConnection.onconnectionstatechange = (event) => {
-            console.log("Connection state:", peerConnection.connectionState);
-            if (peerConnection.connectionState === 'connected') {
+            const state = peerConnection.connectionState;
+            console.log("Connection state:", state);
+
+            if (state === 'connected') {
                 console.log('🔔 Conectado. Deteniendo beep y reproduciendo hola...');
                 stopBeeping();
                 setTimeout(() => {
@@ -122,13 +129,24 @@ async function initOpenAIRealtime() {
                     holaSound.play().then(() => {
                         console.log('Hola sonando');
                     }).catch(e => console.error('Error al reproducir hola', e));
-                }, 100); // Breve delay para liberar audio
+                }, 100);
                 isConnected = true;
                 callStatus.textContent = 'Connected';
                 timer.style.display = 'block';
                 speakNow.style.display = 'block';
                 startTimer();
                 endCallBtn.style.display = 'none';
+
+                // Iniciar timeout de seguridad
+                callTimeout = setTimeout(() => {
+                    console.log('⏱️ Timeout de llamada alcanzado (10 min)');
+                    showNotification('Llamada finalizada por tiempo máximo', 'info');
+                    endCall();
+                }, MAX_CALL_DURATION_MS);
+
+            } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+                console.log('⚠️ Conexión terminada:', state);
+                endCall();
             }
         };
 
@@ -139,7 +157,7 @@ async function initOpenAIRealtime() {
             audioElement.srcObject = event.streams[0];
         };
 
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         peerConnection.addTrack(mediaStream.getTracks()[0]);
 
         // Crear canal de datos
@@ -361,6 +379,28 @@ function endCall() {
     stopBeeping();
     stopTimer();
 
+    // Cancelar timeout de seguridad
+    if (callTimeout) {
+        clearTimeout(callTimeout);
+        callTimeout = null;
+    }
+
+    // Cerrar dataChannel primero
+    if (dataChannel) {
+        dataChannel.close();
+        dataChannel = null;
+    }
+
+    // Detener micrófono (liberar recursos)
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('🎤 Track de audio detenido');
+        });
+        mediaStream = null;
+    }
+
+    // Cerrar conexión WebRTC
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -379,7 +419,7 @@ function endCall() {
     }
 
     isConnected = false;
-    socket = null;
+    console.log('📴 Llamada finalizada y recursos liberados');
 }
 
 function stopTimer() {
@@ -389,6 +429,27 @@ function stopTimer() {
     }
     seconds = 0;
 }
+
+// Limpiar recursos si el usuario cierra la pestaña o navega fuera
+window.addEventListener('beforeunload', () => {
+    if (peerConnection || dataChannel || mediaStream) {
+        endCall();
+    }
+});
+
+// También manejar cuando la página se oculta (móviles)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && isConnected) {
+        console.log('📱 Página oculta, manteniendo conexión por 30s...');
+        // Dar 30 segundos de gracia antes de cerrar (por si vuelve)
+        setTimeout(() => {
+            if (document.visibilityState === 'hidden' && isConnected) {
+                console.log('📴 Cerrando conexión por inactividad');
+                endCall();
+            }
+        }, 30000);
+    }
+});
 
 callButton.addEventListener('click', startCall);
 endCallBtn.addEventListener('click', async () => {

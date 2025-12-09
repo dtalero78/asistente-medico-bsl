@@ -6,12 +6,16 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
 import psycopg
+from openai import OpenAI
 
 load_dotenv()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 print("✅ Flask iniciado correctamente")
+
+# Cliente OpenAI para generar sugerencias
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Conexión a PostgreSQL
 def get_db_connection():
@@ -136,8 +140,11 @@ def send_email():
         data = request.json
         message = data.get('message')
         _id = data.get('_id')
+        nombre = data.get('nombre', 'Paciente')
+        encuesta_salud = data.get('encuestaSalud', [])
+        antecedentes_familiares = data.get('antecedentesFamiliares', [])
 
-        print("📩 Datos recibidos en /send-email:", {'_id': _id, 'message': message})
+        print("📩 Datos recibidos en /send-email:", {'_id': _id, 'nombre': nombre, 'message': message[:100] + '...'})
 
         if not message:
             return jsonify({'error': 'Falta el mensaje'}), 400
@@ -158,23 +165,26 @@ def send_email():
 
         print("✅ Correo enviado")
 
-        # ----------- AQUÍ VA EL ENVÍO POR WHATSAPP, BIEN INDENTADO ----------
+        # Envío por WhatsApp: resumen + sugerencias personalizadas
         to = data.get('to')
         if not to:
             print("❌ No se proporcionó número de WhatsApp del paciente.")
         else:
+            # 1. Enviar el resumen de la llamada
             sendTextMessage(to, message)
-        # -------------------------------------------------------------------
+
+            # 2. Enviar sugerencias personalizadas (después del resumen)
+            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares)
 
         # Guardar resumen en PostgreSQL si hay _id
         if _id:
             resultado_pg = guardar_resumen_postgres(_id, message)
             print("📤 Resultado al guardar en PostgreSQL:", resultado_pg)
 
-        print("✅ Envío completo: email, WhatsApp, y PostgreSQL")
+        print("✅ Envío completo: email, WhatsApp (resumen + sugerencias), y PostgreSQL")
         return jsonify({
             'success': True,
-            'message': 'Resumen enviado por email, WhatsApp y guardado en PostgreSQL'
+            'message': 'Resumen y sugerencias enviados correctamente'
         })
 
     except Exception as e:
@@ -230,6 +240,72 @@ def guardar_resumen_postgres(_id, resumen):
     except Exception as e:
         print("❌ Error al guardar resumen en PostgreSQL:", str(e))
         return {"success": False, "error": str(e)}
+
+
+def generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares):
+    """Genera 3 sugerencias de salud personalizadas usando OpenAI"""
+    try:
+        prompt = f"""Eres un asesor de salud ocupacional amable y profesional de BSL.
+
+Datos del paciente:
+- Nombre: {nombre}
+- Condiciones de salud reportadas: {', '.join(encuesta_salud) if encuesta_salud else 'Ninguna'}
+- Antecedentes familiares: {', '.join(antecedentes_familiares) if antecedentes_familiares else 'Ninguno'}
+
+Genera EXACTAMENTE 3 sugerencias de salud personalizadas y prácticas para este paciente.
+
+REGLAS:
+- Cada sugerencia debe ser breve (1-2 oraciones máximo)
+- Deben ser consejos preventivos, NO diagnósticos
+- Usa un tono cálido y motivador
+- Personaliza según las condiciones reportadas
+- Si no hay condiciones, da consejos generales de bienestar laboral
+
+FORMATO DE RESPUESTA (usa exactamente este formato):
+1. [emoji relevante] [sugerencia]
+2. [emoji relevante] [sugerencia]
+3. [emoji relevante] [sugerencia]
+
+Ejemplos de emojis apropiados: 💪 🏃 🥗 😴 💧 🧘 👁️ ❤️ 🩺 🌿"""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            temperature=0.7
+        )
+
+        sugerencias = response.choices[0].message.content.strip()
+        print(f"✅ Sugerencias generadas: {sugerencias}")
+        return sugerencias
+
+    except Exception as e:
+        print(f"❌ Error generando sugerencias: {str(e)}")
+        return None
+
+
+def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares):
+    """Genera y envía sugerencias personalizadas por WhatsApp"""
+    sugerencias = generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares)
+
+    if not sugerencias:
+        print("⚠️ No se pudieron generar sugerencias")
+        return
+
+    mensaje = f"""✨ *Hola {nombre}* ✨
+
+Gracias por completar tu entrevista de salud ocupacional con BSL.
+
+Aquí tienes algunas recomendaciones personalizadas para ti:
+
+{sugerencias}
+
+─────────────────
+🏥 *BSL - Salud Ocupacional*
+Cuidamos de ti y tu bienestar laboral 💙"""
+
+    sendTextMessage(to, mensaje)
+    print("✅ Sugerencias enviadas por WhatsApp")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

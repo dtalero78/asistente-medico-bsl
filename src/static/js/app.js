@@ -468,8 +468,11 @@ async function sendEmail(message) {
 
     try {
         const _id = chatbotData?._id || null;
+        const nombre = chatbotData?.primerNombre || 'Paciente';
+        const encuestaSalud = chatbotData?.encuestaSalud || [];
+        const antecedentesFamiliares = chatbotData?.antecedentesFamiliares || [];
 
-        console.log("🧾 Enviando resumen con _id:", _id, "y mensaje:", message);
+        console.log("🧾 Enviando resumen con _id:", _id, "nombre:", nombre, "y mensaje:", message);
 
         const celular = chatbotData?.celular?.replace(/\s/g, '').replace(/\+/g, '');
         let to = celular;
@@ -478,7 +481,14 @@ async function sendEmail(message) {
         const response = await fetch('/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, _id, to })
+            body: JSON.stringify({
+                message,
+                _id,
+                to,
+                nombre,
+                encuestaSalud,
+                antecedentesFamiliares
+            })
         });
 
         const result = await response.json();

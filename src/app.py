@@ -308,7 +308,7 @@ Cuidamos de ti y tu bienestar laboral 💙"""
     print("✅ Sugerencias enviadas por WhatsApp")
 
     # 3. Enviar mensaje sobre el certificado
-    mensaje_certificado = "📄 En un momento llegará tu certificado."
+    mensaje_certificado = "En un momento llegará tu certificado"
     sendTextMessage(to, mensaje_certificado)
     print("✅ Mensaje de certificado enviado por WhatsApp")
 

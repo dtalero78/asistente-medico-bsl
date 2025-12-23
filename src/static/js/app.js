@@ -80,8 +80,122 @@ function stopBeeping() {
     beepSound.currentTime = 0;
 }
 
+// Verificar permisos de micrófono
+async function checkMicrophonePermission() {
+    try {
+        // Primero verificar si el navegador soporta getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return { granted: false, error: 'Tu navegador no soporta acceso al micrófono. Por favor usa Chrome, Firefox, Safari o Edge.' };
+        }
+
+        // Intentar obtener el estado del permiso (si el navegador lo soporta)
+        if (navigator.permissions && navigator.permissions.query) {
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                if (permissionStatus.state === 'denied') {
+                    return { granted: false, error: 'El permiso del micrófono está bloqueado. Por favor habilítalo en la configuración de tu navegador.' };
+                }
+            } catch (e) {
+                // Algunos navegadores no soportan query para micrófono, continuamos
+                console.log('Permission query not supported, will try getUserMedia directly');
+            }
+        }
+
+        // Intentar obtener acceso al micrófono
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Si llegamos aquí, el permiso fue otorgado
+        // Detener los tracks para no dejar el micrófono activo
+        stream.getTracks().forEach(track => track.stop());
+        return { granted: true };
+
+    } catch (error) {
+        console.error('Error verificando permisos de micrófono:', error);
+
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            return { granted: false, error: 'Necesitas permitir el acceso al micrófono para realizar la llamada. Por favor haz clic en el ícono de candado en la barra de direcciones y habilita el micrófono.' };
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            return { granted: false, error: 'No se encontró un micrófono. Por favor conecta un micrófono y vuelve a intentar.' };
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            return { granted: false, error: 'El micrófono está siendo usado por otra aplicación. Por favor cierra otras apps que usen el micrófono.' };
+        } else {
+            return { granted: false, error: 'No se pudo acceder al micrófono. Por favor verifica tus permisos e intenta de nuevo.' };
+        }
+    }
+}
+
+// Mostrar modal de error de permisos
+function showPermissionError(message) {
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'permission-error-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    `;
+
+    // Crear modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    `;
+
+    modal.innerHTML = `
+        <div style="font-size: 50px; margin-bottom: 15px;">🎤</div>
+        <h3 style="color: #333; margin-bottom: 15px;">Permiso de Micrófono Requerido</h3>
+        <p style="color: #666; margin-bottom: 20px; line-height: 1.5;">${message}</p>
+        <button id="close-permission-modal" style="
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        ">Entendido</button>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Cerrar modal
+    document.getElementById('close-permission-modal').addEventListener('click', () => {
+        overlay.remove();
+    });
+
+    // Cerrar al hacer clic fuera
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
 // Main: Al iniciar la llamada
 async function startCall() {
+    // Verificar permisos de micrófono antes de iniciar
+    callStatus.textContent = 'Verificando micrófono...';
+
+    const permissionCheck = await checkMicrophonePermission();
+
+    if (!permissionCheck.granted) {
+        showPermissionError(permissionCheck.error);
+        callStatus.textContent = 'Micrófono no disponible';
+        return;
+    }
+
     ringBox.style.display = 'block';
     callStatus.textContent = 'Llamando...';
     startBeeping(); // ⬅️ Inicia beep de espera

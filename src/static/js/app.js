@@ -48,7 +48,12 @@ async function getChatbotData() {
 
         if (data.error) {
             console.error("❌ Error al obtener datos:", data.error);
-            return { noData: true, _id: _id };
+            // Si hay celular en la respuesta de error, incluirlo
+            return {
+                noData: true,
+                _id: _id,
+                celular: data.celular || null
+            };
         }
 
         data._id = _id;
@@ -57,7 +62,7 @@ async function getChatbotData() {
 
     } catch (error) {
         console.error("❌ Error al obtener datos de CHATBOT:", error);
-        return { noData: true, _id: _id };
+        return { noData: true, _id: _id, celular: null };
     }
 }
 

@@ -98,11 +98,30 @@ def get_paciente():
         cur.execute(f'SELECT {columns_str} FROM formularios WHERE wix_id = %s ORDER BY id DESC LIMIT 1', (_id,))
         row = cur.fetchone()
 
+        # Si no hay datos en formularios, buscar celular en HistoriaClinica
+        if not row:
+            print(f"⚠️ No se encontró paciente en formularios para _id: {_id}")
+            print(f"🔍 Buscando celular en HistoriaClinica...")
+
+            cur.execute('SELECT celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (_id,))
+            historia_row = cur.fetchone()
+
+            cur.close()
+            conn.close()
+
+            if historia_row and historia_row[0]:
+                celular = historia_row[0].strip()
+                print(f"✅ Celular encontrado en HistoriaClinica: {celular}")
+                return jsonify({
+                    'error': 'Paciente no encontrado en formularios',
+                    'celular': celular
+                }), 404
+            else:
+                print(f"❌ No se encontró celular en HistoriaClinica para _id: {_id}")
+                return jsonify({'error': 'Paciente no encontrado'}), 404
+
         cur.close()
         conn.close()
-
-        if not row:
-            return jsonify({'error': 'Paciente no encontrado'}), 404
 
         # Convertir a diccionario
         row_dict = dict(zip(columns, row))
@@ -268,7 +287,7 @@ def sendTextMessage(to, message):
                 # Actualizar conversación existente
                 cur.execute(
                     '''UPDATE conversaciones_whatsapp
-                       SET stop_bot = true, fecha_ultima_actividad = NOW()
+                       SET "stopBot" = true, fecha_ultima_actividad = NOW()
                        WHERE celular = %s''',
                     (to,)
                 )
@@ -277,7 +296,7 @@ def sendTextMessage(to, message):
                 # Crear nueva conversación
                 cur.execute(
                     '''INSERT INTO conversaciones_whatsapp
-                       (celular, nombre_cliente, estado, stop_bot, fecha_ultima_actividad)
+                       (celular, nombre_paciente, estado, "stopBot", fecha_ultima_actividad)
                        VALUES (%s, %s, 'cerrada', true, NOW())''',
                     (to, 'Asistente Médico BSL')
                 )

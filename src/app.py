@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 import psycopg
 from openai import OpenAI
+from twilio.rest import Client
 
 load_dotenv()
 
@@ -16,6 +17,12 @@ print("✅ Flask iniciado correctamente")
 
 # Cliente OpenAI para generar sugerencias
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Cliente Twilio para WhatsApp
+twilio_client = Client(
+    os.getenv('TWILIO_ACCOUNT_SID'),
+    os.getenv('TWILIO_AUTH_TOKEN')
+)
 
 # Conexión a PostgreSQL
 def get_db_connection():
@@ -120,7 +127,7 @@ def get_session():
     try:
         url = "https://api.openai.com/v1/realtime/sessions"
         payload = {
-            "model": "gpt-realtime",
+            "model": "gpt-4o-realtime-preview-2024-12-17",
             "modalities": ["audio", "text"],
             "voice": "ash",
             "instructions": "Eres un asistente médico de BSL"
@@ -192,35 +199,79 @@ def send_email():
         return jsonify({'error': f"Email error: {str(e)}"}), 500
 
 def sendTextMessage(to, message):
-    # --- Formatea el número ---
-    to = str(to).replace(' ', '').replace('+', '')
-    if not to.startswith('57'):
-        to = '57' + to
-    # --------------------------
-
-    url = "https://gate.whapi.cloud/messages/text"
-    headers = {
-        "accept": "application/json",
-        "authorization": f"Bearer {os.getenv('WHAPI_TOKEN')}",
-        "content-type": "application/json"
-    }
-    payload = {
-        "typing_time": 0,
-        "to": to,
-        "body": message
-    }
+    """Envía mensaje de WhatsApp usando Twilio"""
     try:
-        response = requests.post(url, json=payload, headers=headers)
-        print("📡 Código de respuesta Whapi:", response.status_code)
-        print("📡 Body de respuesta Whapi:", response.text)
-        response.raise_for_status()
-        print("✅ WhatsApp enviado")
-        return response.json()
+        # Formatea el número para Twilio (debe incluir código de país)
+        to = str(to).replace(' ', '').replace('+', '')
+        if not to.startswith('57'):
+            to = '57' + to
+
+        # Formato requerido por Twilio para WhatsApp
+        to_whatsapp = f'whatsapp:+{to}'
+        from_whatsapp = os.getenv('TWILIO_WHATSAPP_FROM')
+
+        print(f"📱 Enviando WhatsApp de {from_whatsapp} a {to_whatsapp}")
+
+        # Enviar mensaje usando Twilio
+        message_response = twilio_client.messages.create(
+            body=message,
+            from_=from_whatsapp,
+            to=to_whatsapp
+        )
+
+        print(f"✅ WhatsApp enviado - SID: {message_response.sid}, Estado: {message_response.status}")
+
+        # Registrar o actualizar conversación en la base de datos
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+
+            # Verificar si existe una conversación para este número
+            cur.execute(
+                'SELECT id FROM conversaciones_whatsapp WHERE celular = %s',
+                (to,)
+            )
+            conv_existente = cur.fetchone()
+
+            if conv_existente:
+                # Actualizar conversación existente
+                cur.execute(
+                    '''UPDATE conversaciones_whatsapp
+                       SET stop_bot = true, fecha_ultima_actividad = NOW()
+                       WHERE celular = %s''',
+                    (to,)
+                )
+                print(f"🔄 Conversación actualizada para {to}")
+            else:
+                # Crear nueva conversación
+                cur.execute(
+                    '''INSERT INTO conversaciones_whatsapp
+                       (celular, nombre_cliente, estado, stop_bot, fecha_ultima_actividad)
+                       VALUES (%s, %s, 'cerrada', true, NOW())''',
+                    (to, 'Asistente Médico BSL')
+                )
+                print(f"✨ Nueva conversación creada para {to}")
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+        except Exception as db_error:
+            print(f"⚠️ Error al registrar conversación en BD: {db_error}")
+            # No fallar el envío si hay error en BD
+
+        return {
+            "success": True,
+            "sid": message_response.sid,
+            "status": message_response.status
+        }
+
     except Exception as e:
-        print("❌ Error al enviar por WhatsApp:", e)
-        if 'response' in locals():
-            print("🔴 Respuesta completa Whapi (error):", response.text)
-        return {"success": False, "error": str(e), "body": response.text if 'response' in locals() else ""}
+        print(f"❌ Error al enviar por WhatsApp (Twilio): {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 def guardar_resumen_postgres(_id, resumen):

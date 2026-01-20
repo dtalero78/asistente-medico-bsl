@@ -32,7 +32,10 @@ Required in `.env` file (see `.env.example` pattern):
 - `OPENAI_API_KEY` - OpenAI API key for GPT-4o Realtime
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` - Email configuration
 - `RECEIVING_EMAIL` - Email address to receive call summaries
-- `WHAPI_TOKEN` - Whapi.cloud token for WhatsApp messaging
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` - Twilio credentials for WhatsApp
+- `TWILIO_WHATSAPP_FROM` - Twilio WhatsApp sender number (format: whatsapp:+573153369631)
+- `TWILIO_MESSAGING_SERVICE_SID` - Twilio messaging service ID
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL database credentials
 
 ## Architecture
 
@@ -55,13 +58,14 @@ Required in `.env` file (see `.env.example` pattern):
 3. WebRTC connection established with OpenAI Realtime
 4. On `session.created`, custom instructions injected with patient data
 5. AI conducts interview, calls `sendEmail` function when done
-6. Backend sends summary to: email (SMTP), WhatsApp (Whapi), Wix (HTTP POST)
+6. Backend sends summary to: email (SMTP), WhatsApp (Twilio), PostgreSQL database
 
 ## Key Integration Points
 
-- **Wix Backend**: Patient data retrieval and summary storage at `bsl.com.co/_functions/*`
-- **WhatsApp**: Colombian phone numbers auto-prefixed with `57`
+- **PostgreSQL**: Patient data retrieval and summary storage
+- **WhatsApp via Twilio**: Colombian phone numbers auto-prefixed with `57`, sent via Twilio API
 - **OpenAI Model**: `gpt-4o-realtime-preview-2024-12-17` with voice `ash`
+- **AI Suggestions**: Uses `gpt-4o-mini` to generate personalized health recommendations
 
 ## Deployment
 

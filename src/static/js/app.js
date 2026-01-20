@@ -48,7 +48,7 @@ async function getChatbotData() {
 
         if (data.error) {
             console.error("❌ Error al obtener datos:", data.error);
-            return null;
+            return { noData: true, _id: _id };
         }
 
         data._id = _id;
@@ -57,7 +57,7 @@ async function getChatbotData() {
 
     } catch (error) {
         console.error("❌ Error al obtener datos de CHATBOT:", error);
-        return null;
+        return { noData: true, _id: _id };
     }
 }
 
@@ -364,7 +364,30 @@ async function initOpenAIRealtime() {
 
                 // Inyectar instrucciones personalizadas
                 if (msg.type === "session.created" && chatbotData) {
-                    const systemInstructions = `
+                    let systemInstructions;
+
+                    // Si el usuario no tiene datos en formularios
+                    if (chatbotData.noData) {
+                        systemInstructions = `
+Eres un asistente de salud ocupacional de BSL.
+
+IMPORTANTE: Este paciente NO ha completado las pruebas médicas previas requeridas.
+
+INSTRUCCIONES:
+1. Saluda al paciente de manera amable
+2. Infórmale que para realizar la consulta médica debe completar primero las pruebas de salud ocupacional
+3. Dile que le vas a enviar un link por WhatsApp para que complete las pruebas
+4. Llama la función sendEmail con el mensaje: "FORMULARIO_PENDIENTE"
+5. Despídete cordialmente
+
+TONO: Amable, profesional y comprensivo.
+
+EJEMPLO DE MENSAJE:
+"Hola, gracias por contactarte con BSL. Para poder realizar tu consulta médica, primero necesitas completar las pruebas de salud ocupacional. Te voy a enviar un link por WhatsApp para que las completes. Una vez terminadas, podrás agendar tu consulta. ¿De acuerdo?"
+`;
+                    } else {
+                        // Usuario con datos completos
+                        systemInstructions = `
 Eres un asistente de salud ocupacional de BSL. Realizas entrevistas médicas breves.
 
 DATOS DEL PACIENTE:
@@ -399,6 +422,7 @@ Resumen de la entrevista:
 - Ocupación anterior: [respuesta]
 - Empresa solicitante: [respuesta]
 `;
+                    }
 
                     const sessionUpdate = {
                         type: "session.update",

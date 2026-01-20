@@ -151,11 +151,42 @@ def send_email():
         encuesta_salud = data.get('encuestaSalud', [])
         antecedentes_familiares = data.get('antecedentesFamiliares', [])
 
-        print("📩 Datos recibidos en /send-email:", {'_id': _id, 'nombre': nombre, 'message': message[:100] + '...'})
+        print("📩 Datos recibidos en /send-email:", {'_id': _id, 'nombre': nombre, 'message': message[:100] if len(message) > 100 else message})
 
         if not message:
             return jsonify({'error': 'Falta el mensaje'}), 400
 
+        # Caso especial: Usuario sin formulario completado
+        if message == "FORMULARIO_PENDIENTE":
+            to = data.get('to')
+            if not to:
+                print("❌ No se proporcionó número de WhatsApp del paciente.")
+                return jsonify({'error': 'Falta número de WhatsApp'}), 400
+
+            # Enviar link del formulario por WhatsApp
+            link_formulario = f"https://bsl-plataforma.com/?_id={_id}"
+            mensaje_formulario = f"""Hola, gracias por contactarte con BSL.
+
+Para poder realizar tu consulta médica, necesitas completar primero las pruebas de salud ocupacional.
+
+Por favor ingresa a este link para completar el formulario:
+{link_formulario}
+
+Una vez que termines, podrás agendar tu consulta médica.
+
+Si tienes alguna duda, no dudes en contactarnos.
+
+🏥 *BSL - Salud Ocupacional*"""
+
+            sendTextMessage(to, mensaje_formulario)
+            print("✅ Link de formulario enviado por WhatsApp")
+
+            return jsonify({
+                'success': True,
+                'message': 'Link de formulario enviado correctamente'
+            })
+
+        # Flujo normal: Usuario con formulario completado
         # Enviar correo
         msg = MIMEText(message)
         msg['Subject'] = 'Call Summary'

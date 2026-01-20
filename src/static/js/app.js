@@ -388,7 +388,7 @@ INSTRUCCIONES:
 TONO: Amable, profesional y comprensivo.
 
 EJEMPLO DE MENSAJE:
-"Hola, gracias por contactarte con BSL. Para poder realizar tu consulta médica, primero necesitas completar las pruebas de salud ocupacional. Te voy a enviar un link por WhatsApp para que las completes. Una vez terminadas, podrás agendar tu consulta. ¿De acuerdo?"
+"Hola, gracias por contactarte con BSL. Para poder realizar tu consulta médica, primero necesitas completar las pruebas de salud ocupacional. Te voy a enviar un link por WhatsApp para que las completes. Una vez terminadas, podrás continuar con tu consulta. ¿De acuerdo?"
 `;
                     } else {
                         // Usuario con datos completos

@@ -231,7 +231,7 @@ Si tienes alguna duda, no dudes en contactarnos.
             sendTextMessage(to, message)
 
             # 2. Enviar sugerencias personalizadas (después del resumen)
-            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares)
+            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id)
 
         # Guardar resumen en PostgreSQL si hay _id
         if _id:
@@ -409,7 +409,7 @@ Ejemplos de emojis apropiados: 💪 🏃 🥗 😴 💧 🧘 👁️ ❤️ 🩺
         return None
 
 
-def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares):
+def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id=None):
     """Genera y envía sugerencias personalizadas por WhatsApp"""
     sugerencias = generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares)
 
@@ -432,10 +432,15 @@ Cuidamos de ti y tu bienestar laboral 💙"""
     sendTextMessage(to, mensaje)
     print("✅ Sugerencias enviadas por WhatsApp")
 
-    # 3. Enviar mensaje sobre el certificado
-    mensaje_certificado = "En un momento llegará tu certificado"
+    # 3. Enviar mensaje sobre el certificado con link personalizado
+    if _id:
+        link_certificado = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/solicitar-certificado.html?id={_id}"
+        mensaje_certificado = f"Puedes descargar tu certificado en: {link_certificado}"
+    else:
+        mensaje_certificado = "En un momento llegará tu certificado"
+
     sendTextMessage(to, mensaje_certificado)
-    print("✅ Mensaje de certificado enviado por WhatsApp")
+    print(f"✅ Mensaje de certificado enviado por WhatsApp{' con link personalizado' if _id else ''}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

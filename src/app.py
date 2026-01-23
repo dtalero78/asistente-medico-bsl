@@ -272,6 +272,7 @@ def sendTextMessage(to, message):
         print(f"✅ WhatsApp enviado - SID: {message_response.sid}, Estado: {message_response.status}")
 
         # Registrar o actualizar conversación en la base de datos
+        conversacion_id = None
         try:
             conn = get_db_connection()
             cur = conn.cursor()
@@ -284,6 +285,7 @@ def sendTextMessage(to, message):
             conv_existente = cur.fetchone()
 
             if conv_existente:
+                conversacion_id = conv_existente[0]
                 # Actualizar conversación existente
                 cur.execute(
                     '''UPDATE conversaciones_whatsapp
@@ -291,29 +293,51 @@ def sendTextMessage(to, message):
                        WHERE celular = %s''',
                     (to,)
                 )
-                print(f"🔄 Conversación actualizada para {to}")
+                print(f"🔄 Conversación actualizada para {to} - Conv ID: {conversacion_id}")
             else:
                 # Crear nueva conversación
                 cur.execute(
                     '''INSERT INTO conversaciones_whatsapp
                        (celular, nombre_paciente, estado, "stopBot", fecha_ultima_actividad)
-                       VALUES (%s, %s, 'cerrada', true, NOW())''',
-                    (to, 'Asistente Médico BSL')
+                       VALUES (%s, %s, 'cerrada', true, NOW())
+                       RETURNING id''',
+                    (to, 'Asistente Médico IA')
                 )
-                print(f"✨ Nueva conversación creada para {to}")
+                conversacion_id = cur.fetchone()[0]
+                print(f"✨ Nueva conversación creada para {to} - Conv ID: {conversacion_id}")
+
+            # Verificar si el mensaje ya existe (evitar duplicados)
+            cur.execute(
+                'SELECT id FROM mensajes_whatsapp WHERE sid_twilio = %s',
+                (message_response.sid,)
+            )
+            mensaje_existente = cur.fetchone()
+
+            if not mensaje_existente:
+                # Guardar mensaje en mensajes_whatsapp
+                cur.execute(
+                    '''INSERT INTO mensajes_whatsapp
+                       (conversacion_id, contenido, direccion, sid_twilio, tipo_mensaje, timestamp)
+                       VALUES (%s, %s, 'saliente', %s, 'text', NOW())''',
+                    (conversacion_id, message, message_response.sid)
+                )
+                print(f"✅ Mensaje guardado en mensajes_whatsapp - Conv ID: {conversacion_id}, SID: {message_response.sid}")
+            else:
+                print(f"ℹ️ Mensaje {message_response.sid} ya existe en BD, omitiendo duplicado")
 
             conn.commit()
             cur.close()
             conn.close()
 
         except Exception as db_error:
-            print(f"⚠️ Error al registrar conversación en BD: {db_error}")
+            print(f"⚠️ Error al registrar conversación/mensaje en BD: {db_error}")
             # No fallar el envío si hay error en BD
 
         return {
             "success": True,
             "sid": message_response.sid,
-            "status": message_response.status
+            "status": message_response.status,
+            "conversacion_id": conversacion_id
         }
 
     except Exception as e:

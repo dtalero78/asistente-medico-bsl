@@ -30,6 +30,11 @@ export async function initOpenAIRealtime(endCall) {
 
         const tokenResponse = await fetchWithRetry("session");
         const data = await tokenResponse.json();
+
+        if (!data.client_secret || !data.client_secret.value) {
+            throw new Error('No se pudo obtener token de sesion: ' + JSON.stringify(data.error || data));
+        }
+
         const EPHEMERAL_KEY = data.client_secret.value;
 
         state.peerConnection = new RTCPeerConnection();

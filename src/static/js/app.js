@@ -62,7 +62,10 @@ function endCall() {
         callStatus.textContent = summary;
         endCallBtn.style.display = 'none';
 
+        // Cerrar pestaña después de 3 segundos
         setTimeout(() => {
+            window.close();
+            // Fallback si window.close() no funciona (restricción del navegador)
             ringBox.style.display = 'none';
             callButton.style.display = 'block';
             callButton.disabled = false;

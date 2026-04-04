@@ -27,6 +27,14 @@ async function startCall() {
 
     state.chatbotData = await getChatbotData();
 
+    if (state.chatbotData?.linkUsado) {
+        callStatus.textContent = 'Esta consulta ya fue realizada';
+        callButton.disabled = true;
+        callButton.style.display = 'none';
+        setTimeout(() => { window.close(); }, 5000);
+        return;
+    }
+
     callStatus.textContent = 'Llamando...';
     startBeeping();
     endCallBtn.disabled = true;

@@ -31,6 +31,10 @@ export async function getChatbotData() {
         const response = await fetch(`/api/paciente?_id=${_id}`);
         const data = await response.json();
 
+        if (data.error === 'link_usado') {
+            return { linkUsado: true, _id: _id };
+        }
+
         if (data.error) {
             console.error("Error al obtener datos:", data.error);
             return { noData: true, _id: _id, celular: data.celular || null };

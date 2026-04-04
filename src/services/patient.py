@@ -56,6 +56,16 @@ def fetch_patient_data(_id):
     """
     with db_pool.connection() as conn:
         with conn.cursor() as cur:
+            # Verificar si la llamada ya fue realizada
+            cur.execute(
+                'SELECT "resumenLlamada" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1',
+                (_id,)
+            )
+            historia = cur.fetchone()
+            if historia and historia[0]:
+                logger.info("Link ya usado para _id: %s", _id)
+                return {'used': True}
+
             columns = ['primer_nombre', 'celular'] + list(SALUD_COLS.keys()) + list(FAMILIA_COLS.keys())
             columns_str = ', '.join(columns)
 

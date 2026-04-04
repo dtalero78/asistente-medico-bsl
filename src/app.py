@@ -37,7 +37,10 @@ def get_paciente():
     try:
         result = fetch_patient_data(_id)
 
-        if not result['found']:
+        if result.get('used'):
+            return jsonify({'error': 'link_usado'}), 403
+
+        if not result.get('found'):
             if result.get('celular'):
                 return jsonify({
                     'error': 'Paciente no encontrado en formularios',

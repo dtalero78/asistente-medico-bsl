@@ -50,6 +50,15 @@
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.25);
   }
+  #callButton:focus-visible {
+    outline: 3px solid #6e8efb;
+    outline-offset: 3px;
+  }
+  #callButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
   
   /* Pantalla completa durante la llamada */
   #ringBox {
@@ -117,6 +126,10 @@
     background: #ff2222;
     transform: translateY(-2px);
   }
+  #endCallBtn:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
   
   /* Animaciones */
   .wave {
@@ -154,9 +167,15 @@
     background: #4CAF50;
     color: white;
   }
+  .notification.success::before {
+    content: "\2713 ";
+  }
   .notification.error {
     background: #f44336;
     color: white;
+  }
+  .notification.error::before {
+    content: "\2717 ";
   }
   @keyframes slideIn {
     from { transform: translateX(100%); }
@@ -244,5 +263,51 @@
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
+  }
+
+  /* Modal reutilizable */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+  }
+  .modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+  .modal-close-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .modal-close-btn:hover {
+    background: #0056b3;
+  }
+  .modal-close-btn:focus-visible {
+    outline: 3px solid #007bff;
+    outline-offset: 3px;
+  }
+
+  /* Reducir movimiento para usuarios que lo prefieran */
+  @media (prefers-reduced-motion: reduce) {
+    .wave { animation: none; }
+    .timer-wrapper .speak-now { animation: none; }
+    .notification { animation: none; }
   }
   

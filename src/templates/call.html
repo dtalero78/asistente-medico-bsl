@@ -12,31 +12,33 @@
 <body>
 
     <!-- Capa oscura para mejorar contraste -->
-    <div class="overlay"></div>
+    <div class="overlay" aria-hidden="true"></div>
 
-    <!-- Contenedor central del botón -->
-    <div class="main-container">
-        <button id="callButton">Iniciar Llamada</button>
-    </div>
-
-    <!-- Caja que aparece durante la llamada -->
-    <div id="ringBox">
-        <div class="ring-content">
-            <div class="wave"></div>
-            <div class="wave" style="animation-delay: 0.6s"></div>
-            <div class="wave" style="animation-delay: 1.2s"></div>
-            <div class="call-status">Iniciando...</div>
-            <div class="timer-wrapper">
-                <h2>Asistente Médico Virtual</h2>
-                <div class="timer"></div>
-                <div class="speak-now">PUEDES HABLAR</div>
-            </div>                         
-            <div class="loader" style="display: none;">Enviando resumen...</div>
-            <button id="endCallBtn" style="display: none;">Finalizar Llamada</button>
+    <main>
+        <!-- Contenedor central del botón -->
+        <div class="main-container">
+            <button id="callButton" aria-label="Iniciar llamada con asistente medico">Iniciar Llamada</button>
         </div>
-    </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+        <!-- Caja que aparece durante la llamada -->
+        <div id="ringBox" role="region" aria-label="Llamada en curso">
+            <div class="ring-content">
+                <div class="wave" aria-hidden="true"></div>
+                <div class="wave" aria-hidden="true" style="animation-delay: 0.6s"></div>
+                <div class="wave" aria-hidden="true" style="animation-delay: 1.2s"></div>
+                <div class="call-status" role="status" aria-live="polite">Iniciando...</div>
+                <div class="timer-wrapper">
+                    <h2>Asistente Médico Virtual</h2>
+                    <div class="timer" role="timer" aria-live="off"></div>
+                    <div class="speak-now" aria-live="assertive">PUEDES HABLAR</div>
+                </div>
+                <div class="loader" role="alert" style="display: none;">Enviando resumen...</div>
+                <button id="endCallBtn" aria-label="Finalizar llamada" style="display: none;">Finalizar Llamada</button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 
 </html>

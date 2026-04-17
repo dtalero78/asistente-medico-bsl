@@ -19,6 +19,7 @@ def send_text_message(to, message):
             to = '57' + to
 
         to_whatsapp = f'whatsapp:+{to}'
+        celular_bd = f'+{to}'
         from_whatsapp = os.getenv('TWILIO_WHATSAPP_FROM')
 
         logger.info("Enviando WhatsApp de %s a %s", from_whatsapp, to_whatsapp)
@@ -31,7 +32,7 @@ def send_text_message(to, message):
 
         logger.info("WhatsApp enviado - SID: %s, Estado: %s", message_response.sid, message_response.status)
 
-        conversacion_id = _registrar_mensaje_bd(to, message, message_response.sid)
+        conversacion_id = _registrar_mensaje_bd(celular_bd, message, message_response.sid)
 
         return {
             "success": True,

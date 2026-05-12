@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from twilio.rest import Client
 from db import db_pool
@@ -9,6 +10,36 @@ twilio_client = Client(
     os.getenv('TWILIO_ACCOUNT_SID'),
     os.getenv('TWILIO_AUTH_TOKEN')
 )
+
+
+def send_template_message(to, content_sid, variables: dict):
+    """Envia mensaje de WhatsApp usando una plantilla Twilio aprobada por Meta."""
+    try:
+        to = str(to).replace(' ', '').replace('+', '')
+        if not to.startswith('57'):
+            to = '57' + to
+        to_whatsapp = f'whatsapp:+{to}'
+        celular_bd = f'+{to}'
+        from_whatsapp = os.getenv('TWILIO_WHATSAPP_FROM')
+
+        message_response = twilio_client.messages.create(
+            content_sid=content_sid,
+            content_variables=json.dumps(variables),
+            from_=from_whatsapp,
+            to=to_whatsapp
+        )
+
+        logger.info("Template enviado - SID: %s, Estado: %s", message_response.sid, message_response.status)
+
+        vars_texto = ', '.join(f'{{{{{k}}}}}: {v}' for k, v in variables.items())
+        contenido = f'[TEMPLATE] {content_sid} | {vars_texto}'
+        _registrar_mensaje_bd(celular_bd, contenido, message_response.sid)
+
+        return {"success": True, "sid": message_response.sid, "status": message_response.status}
+
+    except Exception as e:
+        logger.error("Error al enviar template WhatsApp: %s", e)
+        return {"success": False, "error": str(e)}
 
 
 def send_text_message(to, message):

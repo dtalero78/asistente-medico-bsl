@@ -1,7 +1,7 @@
 import os
 import logging
 from openai import OpenAI
-from services.whatsapp import send_text_message
+from services.whatsapp import send_template_message, send_text_message
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,13 @@ def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familia
         logger.warning("No se pudieron generar sugerencias")
         return
 
-    mensaje = f"""✨ *Hola {nombre}* ✨
+    template_sid = os.getenv('TWILIO_TEMPLATE_SUGERENCIAS_SALUD')
+    if template_sid:
+        send_template_message(to, template_sid, {"1": nombre, "2": sugerencias})
+        logger.info("Sugerencias enviadas por WhatsApp (template)")
+    else:
+        # Fallback a free-text si el template no está configurado
+        mensaje = f"""✨ *Hola {nombre}* ✨
 
 Gracias por completar tu entrevista de salud ocupacional con BSL.
 
@@ -69,9 +75,8 @@ Aqui tienes algunas recomendaciones personalizadas para ti:
 ─────────────────
 🏥 *BSL - Salud Ocupacional*
 Cuidamos de ti y tu bienestar laboral 💙"""
-
-    send_text_message(to, mensaje)
-    logger.info("Sugerencias enviadas por WhatsApp")
+        send_text_message(to, mensaje)
+        logger.info("Sugerencias enviadas por WhatsApp (free-text fallback)")
 
     if _id:
         link_certificado = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/solicitar-certificado.html?id={_id}"

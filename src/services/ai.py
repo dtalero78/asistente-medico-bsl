@@ -89,9 +89,13 @@ Cuidamos de ti y tu bienestar laboral 💙"""
 
     if _id:
         link_certificado = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/solicitar-certificado.html?id={_id}"
-        mensaje_certificado = f"Puedes descargar tu certificado en: {link_certificado}"
+        template_cert = os.getenv('TWILIO_TEMPLATE_CERTIFICADO_LISTO')
+        if template_cert:
+            send_template_message(to, template_cert, {"1": nombre, "2": link_certificado})
+            logger.info("Link de certificado enviado por WhatsApp (template)")
+        else:
+            send_text_message(to, f"Puedes descargar tu certificado en: {link_certificado}")
+            logger.info("Link de certificado enviado por WhatsApp (free-text fallback)")
     else:
-        mensaje_certificado = "En un momento llegara tu certificado"
-
-    send_text_message(to, mensaje_certificado)
-    logger.info("Mensaje de certificado enviado por WhatsApp%s", ' con link personalizado' if _id else '')
+        send_text_message(to, "En un momento llegara tu certificado")
+        logger.info("Mensaje generico de certificado enviado por WhatsApp")

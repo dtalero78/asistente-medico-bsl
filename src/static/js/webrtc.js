@@ -87,27 +87,85 @@ export async function initOpenAIRealtime(endCall) {
 
         state.dataChannel = state.peerConnection.createDataChannel('oai-events');
 
+        function buildInstructions() {
+            if (!state.chatbotData) return null;
+
+            if (state.chatbotData.noData) {
+                return `
+Eres un asistente de salud ocupacional de BSL.
+
+IMPORTANTE: Este paciente NO ha completado las pruebas medicas previas requeridas.
+
+INSTRUCCIONES:
+1. Saluda al paciente de manera amable
+2. Informale que para realizar la consulta medica debe completar primero las pruebas de salud ocupacional
+3. Dile que le vas a enviar un link por WhatsApp para que complete las pruebas
+4. Llama la funcion sendEmail con el mensaje: "FORMULARIO_PENDIENTE"
+5. Despidete cordialmente
+
+TONO: Amable, profesional y comprensivo.
+`;
+            }
+
+            return `
+Eres un asistente de salud ocupacional de BSL. Realizas entrevistas medicas breves.
+
+DATOS DEL PACIENTE:
+- Nombre: ${state.chatbotData.primerNombre?.trim() || "el paciente"}
+- Historial de salud: ${state.chatbotData.encuestaSalud?.join(", ") || "ninguno"}
+- Antecedentes familiares: ${state.chatbotData.antecedentesFamiliares?.join(", ") || "ninguno"}
+
+REGLAS CRITICAS:
+1. NUNCA repitas una pregunta que ya hiciste
+2. NUNCA pidas informacion que el paciente ya dio
+3. Haz UNA sola pregunta a la vez y espera la respuesta
+4. Manten un seguimiento mental de que preguntas ya hiciste
+5. La entrevista debe durar maximo 2 minutos
+
+FLUJO DE LA ENTREVISTA (en orden, sin repetir):
+1. Saluda brevemente usando el nombre del paciente
+2. Pregunta sobre su historial de salud (${state.chatbotData.encuestaSalud?.join(", ") || "general"})
+3. Pregunta sobre antecedentes familiares (solo si tiene: ${state.chatbotData.antecedentesFamiliares?.join(", ") || "omitir"})
+4. Pregunta sobre su ultimo trabajo y si tuvo enfermedades laborales
+5. Pregunta para que empresa solicita el certificado medico
+6. Despidete y genera el resumen
+
+AL FINALIZAR:
+- Di: "Gracias por tu tiempo, estoy generando tu resumen. No cierres esta ventana."
+- Llama sendEmail({ message: "resumen con los puntos de la entrevista" })
+
+FORMATO DEL RESUMEN:
+Resumen de la entrevista:
+- Paciente: [nombre]
+- Historial de salud: [respuesta]
+- Antecedentes familiares: [respuesta]
+- Ocupacion anterior: [respuesta]
+- Empresa solicitante: [respuesta]
+`;
+        }
+
         function configureData() {
-            const event = {
-                type: 'session.update',
-                session: {
-                    modalities: ['text', 'audio'],
-                    voice: 'ash',
-                    tools: [{
-                        type: 'function',
-                        name: 'sendEmail',
-                        description: 'Envia un resumen por correo cuando el paciente se despida',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                message: { type: 'string', description: 'Email body content' }
-                            },
-                            required: ['message']
-                        }
-                    }]
-                }
+            const instructions = buildInstructions();
+            const sessionConfig = {
+                tools: [{
+                    type: 'function',
+                    name: 'sendEmail',
+                    description: 'Envia un resumen por correo cuando el paciente se despida',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string', description: 'Email body content' }
+                        },
+                        required: ['message']
+                    }
+                }]
             };
+            if (instructions) {
+                sessionConfig.instructions = instructions;
+            }
+            const event = { type: 'session.update', session: sessionConfig };
             state.dataChannel.send(JSON.stringify(event));
+            console.log('session.update enviado con instrucciones:', !!instructions);
         }
 
         state.dataChannel.addEventListener('open', () => {
@@ -148,73 +206,6 @@ export async function initOpenAIRealtime(endCall) {
                     state.resumenGlobal = resumen;
                     endCallBtn.style.display = 'block';
                     await fns.sendEmail({ message: resumen });
-                }
-
-                if (msg.type === "session.created" && state.chatbotData) {
-                    let systemInstructions;
-
-                    if (state.chatbotData.noData) {
-                        systemInstructions = `
-Eres un asistente de salud ocupacional de BSL.
-
-IMPORTANTE: Este paciente NO ha completado las pruebas medicas previas requeridas.
-
-INSTRUCCIONES:
-1. Saluda al paciente de manera amable
-2. Informale que para realizar la consulta medica debe completar primero las pruebas de salud ocupacional
-3. Dile que le vas a enviar un link por WhatsApp para que complete las pruebas
-4. Llama la funcion sendEmail con el mensaje: "FORMULARIO_PENDIENTE"
-5. Despidete cordialmente
-
-TONO: Amable, profesional y comprensivo.
-
-EJEMPLO DE MENSAJE:
-"Hola, gracias por contactarte con BSL. Para poder realizar tu consulta medica, primero necesitas completar las pruebas de salud ocupacional. Te voy a enviar un link por WhatsApp para que las completes. Una vez terminadas, podras continuar con tu consulta. De acuerdo?"
-`;
-                    } else {
-                        systemInstructions = `
-Eres un asistente de salud ocupacional de BSL. Realizas entrevistas medicas breves.
-
-DATOS DEL PACIENTE:
-- Nombre: ${state.chatbotData.primerNombre?.trim() || "el paciente"}
-- Historial de salud: ${state.chatbotData.encuestaSalud?.join(", ") || "ninguno"}
-- Antecedentes familiares: ${state.chatbotData.antecedentesFamiliares?.join(", ") || "ninguno"}
-
-REGLAS CRITICAS:
-1. NUNCA repitas una pregunta que ya hiciste
-2. NUNCA pidas informacion que el paciente ya dio
-3. Haz UNA sola pregunta a la vez y espera la respuesta
-4. Manten un seguimiento mental de que preguntas ya hiciste
-5. La entrevista debe durar maximo 2 minutos
-
-FLUJO DE LA ENTREVISTA (en orden, sin repetir):
-1. Saluda brevemente usando el nombre del paciente
-2. Pregunta sobre su historial de salud (${state.chatbotData.encuestaSalud?.join(", ") || "general"})
-3. Pregunta sobre antecedentes familiares (solo si tiene: ${state.chatbotData.antecedentesFamiliares?.join(", ") || "omitir"})
-4. Pregunta sobre su ultimo trabajo y si tuvo enfermedades laborales
-5. Pregunta para que empresa solicita el certificado medico
-6. Despidete y genera el resumen
-
-AL FINALIZAR:
-- Di: "Gracias por tu tiempo, estoy generando tu resumen. No cierres esta ventana."
-- Llama sendEmail({ message: "resumen con los puntos de la entrevista" })
-
-FORMATO DEL RESUMEN:
-Resumen de la entrevista:
-- Paciente: [nombre]
-- Historial de salud: [respuesta]
-- Antecedentes familiares: [respuesta]
-- Ocupacion anterior: [respuesta]
-- Empresa solicitante: [respuesta]
-`;
-                    }
-
-                    const sessionUpdate = {
-                        type: "session.update",
-                        session: { instructions: systemInstructions }
-                    };
-                    state.dataChannel.send(JSON.stringify(sessionUpdate));
-                    console.log("Instrucciones personalizadas enviadas");
                 }
 
                 if (msg.type === 'response.function_call_arguments.done') {

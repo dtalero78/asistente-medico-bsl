@@ -1,22 +1,28 @@
 import os
 import logging
-from openai import OpenAI
+import requests
 
 logger = logging.getLogger(__name__)
 
 
 def create_realtime_session():
-    """Crea una sesion efimera con OpenAI Realtime API (GA)."""
-    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    try:
-        session = client.beta.realtime.sessions.create(
-            model="gpt-4o-realtime-preview",
-            voice="ash",
-            modalities=["audio", "text"],
-        )
-        data = session.to_dict()
-        logger.info("Session creada OK: %s", str(data)[:200])
-        return data
-    except Exception as e:
-        logger.error("Error creando session OpenAI: %s", str(e))
-        return {"error": {"message": str(e), "type": "session_error"}}
+    """Crea un client secret efimero con OpenAI Realtime GA API."""
+    response = requests.post(
+        "https://api.openai.com/v1/realtime/client_secrets",
+        json={
+            "session": {
+                "model": "gpt-4o-realtime-preview",
+                "voice": "ash",
+                "modalities": ["audio", "text"],
+            }
+        },
+        headers={
+            "Authorization": "Bearer " + os.getenv("OPENAI_API_KEY"),
+            "Content-Type": "application/json"
+        }
+    )
+    data = response.json()
+    logger.info("client_secrets [%s]: %s", response.status_code, str(data)[:300])
+    if "value" in data:
+        return {"client_secret": {"value": data["value"]}}
+    return data

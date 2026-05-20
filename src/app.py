@@ -18,7 +18,7 @@ logger.info("Flask iniciado correctamente")
 
 from services.patient import fetch_patient_data, guardar_resumen
 from services.email import send_summary_email
-from services.whatsapp import send_text_message
+from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
 from services.session import create_realtime_session
 
@@ -123,7 +123,23 @@ Si tienes alguna duda, no dudes en contactarnos.
         if not to:
             logger.error("No se proporciono numero de WhatsApp del paciente")
         else:
-            send_text_message(to, message)
+            template_resumen = os.getenv('TWILIO_TEMPLATE_RESUMEN_ENTREVISTA')
+            if template_resumen:
+                resumen_contenido = message
+                if resumen_contenido.lower().lstrip().startswith('resumen de la entrevista'):
+                    partes = resumen_contenido.split('\n', 1)
+                    resumen_contenido = partes[1].strip() if len(partes) > 1 else resumen_contenido
+                resumen_contenido = resumen_contenido.replace('\t', ' ').strip()
+                while '\n\n' in resumen_contenido:
+                    resumen_contenido = resumen_contenido.replace('\n\n', '\n')
+                while '    ' in resumen_contenido:
+                    resumen_contenido = resumen_contenido.replace('    ', ' ')
+                resumen_contenido = resumen_contenido[:900]
+                send_template_message(to, template_resumen, {"1": nombre, "2": resumen_contenido})
+                logger.info("Resumen enviado por WhatsApp (template)")
+            else:
+                send_text_message(to, message)
+                logger.info("Resumen enviado por WhatsApp (free-text fallback)")
             enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id)
 
         if _id:

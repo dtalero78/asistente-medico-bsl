@@ -189,8 +189,10 @@ Resumen de la entrevista:
             try {
                 const msg = JSON.parse(ev.data);
 
-                if (msg.type === 'error' || msg.type === 'session.updated' || msg.type === 'session.created') {
-                    console.log('[OAI event]', msg.type, msg);
+                if (msg.type === 'error') {
+                    console.error('[OAI ERROR]', JSON.stringify(msg, null, 2));
+                } else if (msg.type === 'session.updated' || msg.type === 'session.created') {
+                    console.log('[OAI event]', msg.type, JSON.stringify(msg, null, 2));
                 } else {
                     console.log('[OAI event]', msg.type);
                 }

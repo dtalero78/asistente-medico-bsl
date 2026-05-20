@@ -251,10 +251,18 @@ Resumen de la entrevista:
             },
         });
 
-        const answer = {
-            type: "answer",
-            sdp: await sdpResponse.text(),
-        };
+        const rawSdp = await sdpResponse.text();
+        console.log("calls response status:", sdpResponse.status, "body:", rawSdp.slice(0, 200));
+
+        let sdpAnswer;
+        try {
+            const parsed = JSON.parse(rawSdp);
+            sdpAnswer = parsed.sdp || parsed.answer?.sdp || rawSdp;
+        } catch {
+            sdpAnswer = rawSdp;
+        }
+
+        const answer = { type: "answer", sdp: sdpAnswer };
         await state.peerConnection.setRemoteDescription(answer);
 
     } catch (error) {

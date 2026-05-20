@@ -59,18 +59,20 @@ def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familia
         return
 
     # Sanea para cumplir reglas de variables de Twilio/WhatsApp (evita error 21656):
-    # sin saltos de linea consecutivos, sin tabs, sin >4 espacios, max 900 chars.
+    # NO admite newlines, tabs, ni >4 espacios. Max 900 chars.
     sugerencias = sugerencias.replace('\t', ' ').strip()
-    while '\n\n' in sugerencias:
-        sugerencias = sugerencias.replace('\n\n', '\n')
+    sugerencias = sugerencias.replace('\n', ' • ')
     while '    ' in sugerencias:
         sugerencias = sugerencias.replace('    ', ' ')
     sugerencias = sugerencias[:900]
 
     template_sid = os.getenv('TWILIO_TEMPLATE_SUGERENCIAS_SALUD')
     if template_sid:
-        send_template_message(to, template_sid, {"1": nombre, "2": sugerencias})
-        logger.info("Sugerencias enviadas por WhatsApp (template)")
+        resultado_sug = send_template_message(to, template_sid, {"1": nombre, "2": sugerencias})
+        if resultado_sug.get('success'):
+            logger.info("Sugerencias enviadas por WhatsApp (template) OK")
+        else:
+            logger.error("Fallo template sugerencias: %s", resultado_sug.get('error'))
     else:
         # Fallback a free-text si el template no está configurado
         mensaje = f"""✨ *Hola {nombre}* ✨
@@ -91,8 +93,11 @@ Cuidamos de ti y tu bienestar laboral 💙"""
         link_certificado = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/solicitar-certificado.html?id={_id}"
         template_cert = os.getenv('TWILIO_TEMPLATE_CERTIFICADO_LISTO')
         if template_cert:
-            send_template_message(to, template_cert, {"1": nombre, "2": link_certificado})
-            logger.info("Link de certificado enviado por WhatsApp (template)")
+            resultado_cert = send_template_message(to, template_cert, {"1": nombre, "2": link_certificado})
+            if resultado_cert.get('success'):
+                logger.info("Link de certificado enviado por WhatsApp (template) OK")
+            else:
+                logger.error("Fallo template certificado: %s", resultado_cert.get('error'))
         else:
             send_text_message(to, f"Puedes descargar tu certificado en: {link_certificado}")
             logger.info("Link de certificado enviado por WhatsApp (free-text fallback)")

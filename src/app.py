@@ -129,14 +129,18 @@ Si tienes alguna duda, no dudes en contactarnos.
                 if resumen_contenido.lower().lstrip().startswith('resumen de la entrevista'):
                     partes = resumen_contenido.split('\n', 1)
                     resumen_contenido = partes[1].strip() if len(partes) > 1 else resumen_contenido
+                # Twilio content variables NO admiten newlines, tabs, ni >4 espacios (error 21656)
                 resumen_contenido = resumen_contenido.replace('\t', ' ').strip()
-                while '\n\n' in resumen_contenido:
-                    resumen_contenido = resumen_contenido.replace('\n\n', '\n')
+                resumen_contenido = resumen_contenido.replace('\n', ' • ')
                 while '    ' in resumen_contenido:
                     resumen_contenido = resumen_contenido.replace('    ', ' ')
                 resumen_contenido = resumen_contenido[:900]
-                send_template_message(to, template_resumen, {"1": nombre, "2": resumen_contenido})
-                logger.info("Resumen enviado por WhatsApp (template)")
+                resultado_template = send_template_message(to, template_resumen, {"1": nombre, "2": resumen_contenido})
+                if resultado_template.get('success'):
+                    logger.info("Resumen enviado por WhatsApp (template) OK")
+                else:
+                    logger.error("Fallo template resumen, usando free-text: %s", resultado_template.get('error'))
+                    send_text_message(to, message)
             else:
                 send_text_message(to, message)
                 logger.info("Resumen enviado por WhatsApp (free-text fallback)")

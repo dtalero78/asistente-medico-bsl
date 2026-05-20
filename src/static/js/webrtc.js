@@ -145,7 +145,17 @@ Resumen de la entrevista:
         }
 
         function configureData() {
+            console.log('=== configureData() ===');
+            console.log('state.chatbotData:', state.chatbotData);
+            console.log('chatbotData.primerNombre:', state.chatbotData?.primerNombre);
+            console.log('chatbotData.encuestaSalud:', state.chatbotData?.encuestaSalud);
+            console.log('chatbotData.antecedentesFamiliares:', state.chatbotData?.antecedentesFamiliares);
+            console.log('chatbotData.noData:', state.chatbotData?.noData);
+
             const instructions = buildInstructions();
+            console.log('Instructions generadas (length):', instructions?.length || 0);
+            console.log('Instructions preview:', instructions?.slice(0, 300));
+
             const sessionConfig = {
                 tools: [{
                     type: 'function',
@@ -164,8 +174,8 @@ Resumen de la entrevista:
                 sessionConfig.instructions = instructions;
             }
             const event = { type: 'session.update', session: sessionConfig };
+            console.log('Enviando session.update con keys:', Object.keys(sessionConfig));
             state.dataChannel.send(JSON.stringify(event));
-            console.log('session.update enviado con instrucciones:', !!instructions);
         }
 
         state.dataChannel.addEventListener('open', () => {
@@ -178,6 +188,12 @@ Resumen de la entrevista:
         state.dataChannel.addEventListener('message', async (ev) => {
             try {
                 const msg = JSON.parse(ev.data);
+
+                if (msg.type === 'error' || msg.type === 'session.updated' || msg.type === 'session.created') {
+                    console.log('[OAI event]', msg.type, msg);
+                } else {
+                    console.log('[OAI event]', msg.type);
+                }
 
                 if (msg.type === "response.text") {
                     const respuesta = msg.text.trim();

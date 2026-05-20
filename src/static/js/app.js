@@ -26,6 +26,7 @@ async function startCall() {
     callStatus.textContent = 'Cargando datos del paciente...';
 
     state.chatbotData = await getChatbotData();
+    console.log('[app.js] chatbotData cargado:', state.chatbotData);
 
     if (state.chatbotData?.linkUsado) {
         callStatus.textContent = 'Esta consulta ya fue realizada';

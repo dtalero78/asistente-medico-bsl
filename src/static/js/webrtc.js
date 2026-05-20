@@ -157,6 +157,7 @@ Resumen de la entrevista:
             console.log('Instructions preview:', instructions?.slice(0, 300));
 
             const sessionConfig = {
+                type: 'realtime',
                 tools: [{
                     type: 'function',
                     name: 'sendEmail',

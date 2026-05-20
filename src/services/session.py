@@ -12,7 +12,12 @@ def create_realtime_session():
         json={
             "session": {
                 "type": "realtime",
-                "model": "gpt-4o-realtime-preview",
+                "model": "gpt-realtime",
+                "audio": {
+                    "output": {
+                        "voice": "ash"
+                    }
+                }
             }
         },
         headers={

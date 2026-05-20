@@ -85,7 +85,7 @@ export async function initOpenAIRealtime(endCall) {
         state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         state.peerConnection.addTrack(state.mediaStream.getTracks()[0]);
 
-        state.dataChannel = state.peerConnection.createDataChannel('response');
+        state.dataChannel = state.peerConnection.createDataChannel('oai-events');
 
         function configureData() {
             const event = {
@@ -241,7 +241,7 @@ Resumen de la entrevista:
         const offer = await state.peerConnection.createOffer();
         await state.peerConnection.setLocalDescription(offer);
 
-        const sdpResponse = await fetch("https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview", {
+        const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
             method: "POST",
             body: offer.sdp,
             headers: {

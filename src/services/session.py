@@ -9,9 +9,9 @@ def create_realtime_session():
     """Crea una sesion efimera con OpenAI Realtime API."""
     url = "https://api.openai.com/v1/realtime/sessions"
     payload = {
-        "model": "gpt-realtime-1.5",
+        "model": "gpt-4o-realtime-preview-2025-06-03",
         "modalities": ["audio", "text"],
-        "voice": "cedar",
+        "voice": "ash",
         "instructions": "Eres un asistente medico de BSL"
     }
     headers = {

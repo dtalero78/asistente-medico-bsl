@@ -241,7 +241,7 @@ Resumen de la entrevista:
         await state.peerConnection.setLocalDescription(offer);
 
         const apiUrl = "https://api.openai.com/v1/realtime";
-        const model = "gpt-realtime-1.5";
+        const model = "gpt-4o-realtime-preview-2025-06-03";
 
         const sdpResponse = await fetch(`${apiUrl}?model=${model}`, {
             method: "POST",

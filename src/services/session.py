@@ -13,8 +13,6 @@ def create_realtime_session():
             "session": {
                 "type": "realtime",
                 "model": "gpt-4o-realtime-preview",
-                "voice": "ash",
-                "modalities": ["audio", "text"],
             }
         },
         headers={

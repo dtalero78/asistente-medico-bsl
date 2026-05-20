@@ -92,6 +92,7 @@ export async function initOpenAIRealtime(endCall) {
                 type: 'session.update',
                 session: {
                     modalities: ['text', 'audio'],
+                    voice: 'ash',
                     tools: [{
                         type: 'function',
                         name: 'sendEmail',

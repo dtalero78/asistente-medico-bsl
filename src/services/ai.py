@@ -58,6 +58,15 @@ def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familia
         logger.warning("No se pudieron generar sugerencias")
         return
 
+    # Sanea para cumplir reglas de variables de Twilio/WhatsApp (evita error 21656):
+    # sin saltos de linea consecutivos, sin tabs, sin >4 espacios, max 900 chars.
+    sugerencias = sugerencias.replace('\t', ' ').strip()
+    while '\n\n' in sugerencias:
+        sugerencias = sugerencias.replace('\n\n', '\n')
+    while '    ' in sugerencias:
+        sugerencias = sugerencias.replace('    ', ' ')
+    sugerencias = sugerencias[:900]
+
     template_sid = os.getenv('TWILIO_TEMPLATE_SUGERENCIAS_SALUD')
     if template_sid:
         send_template_message(to, template_sid, {"1": nombre, "2": sugerencias})

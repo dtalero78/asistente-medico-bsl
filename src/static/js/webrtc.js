@@ -243,26 +243,14 @@ Resumen de la entrevista:
 
         const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
             method: "POST",
-            body: JSON.stringify({ sdp: offer.sdp }),
+            body: offer.sdp,
             headers: {
                 Authorization: `Bearer ${EPHEMERAL_KEY}`,
-                "Content-Type": "application/json",
-                "Accept": "application/sdp"
+                "Content-Type": "application/sdp"
             },
         });
 
-        const rawSdp = await sdpResponse.text();
-        console.log("calls response status:", sdpResponse.status, "body:", rawSdp.slice(0, 200));
-
-        let sdpAnswer;
-        try {
-            const parsed = JSON.parse(rawSdp);
-            sdpAnswer = parsed.sdp || parsed.answer?.sdp || rawSdp;
-        } catch {
-            sdpAnswer = rawSdp;
-        }
-
-        const answer = { type: "answer", sdp: sdpAnswer };
+        const answer = { type: "answer", sdp: await sdpResponse.text() };
         await state.peerConnection.setRemoteDescription(answer);
 
     } catch (error) {

@@ -108,8 +108,16 @@ Si tienes alguna duda, no dudes en contactarnos.
 
 🏥 *BSL - Salud Ocupacional*"""
 
-            send_text_message(to, mensaje_formulario)
-            logger.info("Link de formulario enviado por WhatsApp")
+            # Enviar como PLANTILLA (link_formulario, UTILITY) para que entregue también
+            # fuera de la ventana de 24h. Antes se mandaba texto libre y fallaba con 63016
+            # si el paciente no habia escrito en las ultimas 24h. Fallback a texto libre.
+            template_formulario = os.getenv('TWILIO_TEMPLATE_LINK_FORMULARIO', 'HXea23b4e56f1a6e1a0ebda2378355442e')
+            resultado_form = send_template_message(to, template_formulario, {"1": nombre, "2": _id, "3": data.get('empresa', 'BSL')})
+            if resultado_form.get('success'):
+                logger.info("Link de formulario enviado por WhatsApp (template link_formulario)")
+            else:
+                logger.warning("Template formulario fallo (%s); usando texto libre", resultado_form.get('error'))
+                send_text_message(to, mensaje_formulario)
 
             return jsonify({
                 'success': True,

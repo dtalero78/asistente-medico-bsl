@@ -4,6 +4,7 @@ import json
 import logging
 from twilio.rest import Client
 from db import db_pool
+from services.phone import normalizar_telefono, formatear_para_whatsapp
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +63,22 @@ def _texto_plantilla(content_sid, variables):
     return f'[TEMPLATE] Template enviado ({content_sid})\nVariables: {vars_texto}'
 
 
+def _destino(to):
+    """('whatsapp:+57...' para Twilio, '+57...' para conversaciones_whatsapp).
+
+    Con el mismo helper que PLATAFORMA2, para que el celular guardado coincida con el
+    de la conversacion que ya existe y no se cree otra para el mismo paciente.
+    """
+    celular_bd = normalizar_telefono(to)
+    if not celular_bd:
+        raise ValueError(f"Numero de WhatsApp invalido: {to!r}")
+    return formatear_para_whatsapp(celular_bd), celular_bd
+
+
 def send_template_message(to, content_sid, variables: dict):
     """Envia mensaje de WhatsApp usando una plantilla Twilio aprobada por Meta."""
     try:
-        to = str(to).replace(' ', '').replace('+', '')
-        if not to.startswith('57'):
-            to = '57' + to
-        to_whatsapp = f'whatsapp:+{to}'
-        celular_bd = f'+{to}'
+        to_whatsapp, celular_bd = _destino(to)
         from_whatsapp = os.getenv('TWILIO_WHATSAPP_FROM')
 
         message_response = twilio_client.messages.create(
@@ -94,12 +103,7 @@ def send_template_message(to, content_sid, variables: dict):
 def send_text_message(to, message):
     """Envia mensaje de WhatsApp usando Twilio y registra en BD."""
     try:
-        to = str(to).replace(' ', '').replace('+', '')
-        if not to.startswith('57'):
-            to = '57' + to
-
-        to_whatsapp = f'whatsapp:+{to}'
-        celular_bd = f'+{to}'
+        to_whatsapp, celular_bd = _destino(to)
         from_whatsapp = os.getenv('TWILIO_WHATSAPP_FROM')
 
         logger.info("Enviando WhatsApp de %s a %s", from_whatsapp, to_whatsapp)
@@ -172,8 +176,18 @@ def _registrar_mensaje_bd(celular, contenido, sid_twilio, tipo_mensaje='text'):
                         '''INSERT INTO mensajes_whatsapp
                            (conversacion_id, contenido, direccion, sid_twilio, tipo_mensaje,
                             enviado_por_tipo, timestamp, tenant_id)
-                           VALUES (%s, %s, 'saliente', %s, %s, 'sistema', NOW(), %s)''',
+                           VALUES (%s, %s, 'saliente', %s, %s, 'sistema', NOW(), %s)
+                           RETURNING id''',
                         (conversacion_id, contenido, sid_twilio, tipo_mensaje, TENANT_ID)
+                    )
+                    mensaje_id = cur.fetchone()[0]
+                    # IrisChat solo pinta mensajes nuevos cuando le llega un evento de socket,
+                    # y esta app no tiene socket. PLATAFORMA2 hace LISTEN de este canal y emite
+                    # el evento (src/services/whatsapp-externo-listener.js). Postgres lo entrega
+                    # recien con el commit, asi que nunca avisa de un mensaje que no quedo guardado.
+                    cur.execute(
+                        "SELECT pg_notify('whatsapp_mensaje_externo', %s)",
+                        (json.dumps({'mensaje_id': mensaje_id}),)
                     )
                     logger.info("Mensaje guardado en mensajes_whatsapp - Conv ID: %s, SID: %s", conversacion_id, sid_twilio)
                 else:

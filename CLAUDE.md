@@ -24,6 +24,9 @@ pip install -r requirements.txt
 python src/app.py
 
 # Default port: 5001 (configurable via PORT env var)
+
+# Tests (unittest nativo, sin BD ni red)
+python -m unittest discover tests
 ```
 
 ## Environment Variables
@@ -63,7 +66,8 @@ Required in `.env` file (see `.env.example` pattern):
 ## Key Integration Points
 
 - **PostgreSQL**: Patient data retrieval and summary storage
-- **WhatsApp via Twilio**: Colombian phone numbers auto-prefixed with `57`, sent via Twilio API
+- **WhatsApp via Twilio**: los números pasan por `src/services/phone.py`, port del helper de BSL-PLATAFORMA2 (`src/helpers/phone.js`). Las dos apps escriben en `conversaciones_whatsapp`: si normalizan distinto, el mismo paciente queda con dos conversaciones. Cambiar una regla en las dos.
+- **IrisChat (BSL-PLATAFORMA2)**: esta app escribe directo en `conversaciones_whatsapp` / `mensajes_whatsapp` (siempre `tenant_id = 'bsl'`). Guarda el texto real de cada plantilla y, en la misma transacción, hace `pg_notify('whatsapp_mensaje_externo', {mensaje_id})`; PLATAFORMA2 escucha ese canal y emite el evento de socket para que IrisChat lo muestre en vivo.
 - **OpenAI Model**: `gpt-4o-realtime-preview-2024-12-17` with voice `ash`
 - **AI Suggestions**: Uses `gpt-4o-mini` to generate personalized health recommendations
 

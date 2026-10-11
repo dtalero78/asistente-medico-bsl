@@ -58,9 +58,9 @@ export async function sendEmail(message) {
         const encuestaSalud = state.chatbotData?.encuestaSalud || [];
         const antecedentesFamiliares = state.chatbotData?.antecedentesFamiliares || [];
 
-        const celular = state.chatbotData?.celular?.replace(/\s/g, '').replace(/\+/g, '');
-        let to = celular;
-        if (to && !to.startsWith('57')) to = '57' + to;
+        // El celular va tal cual: lo normaliza el backend (services/phone.py). Antes se le
+        // quitaba el + y se le anteponía 57, y un peruano +51965423527 salía como +5751965423527.
+        const to = state.chatbotData?.celular?.trim() || null;
 
         const body = JSON.stringify({
             message, _id, to, nombre, encuestaSalud, antecedentesFamiliares

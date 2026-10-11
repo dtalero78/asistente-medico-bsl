@@ -16,3 +16,4 @@ psycopg[binary]==3.2.3
 psycopg_pool>=3.1.0
 openai>=1.0.0
 twilio>=9.0.0
+phonenumbers==9.0.40

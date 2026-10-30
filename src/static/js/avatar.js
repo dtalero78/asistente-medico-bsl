@@ -14,6 +14,7 @@ const selfVideo = document.getElementById('selfVideo');
 const doctorBubble = document.getElementById('doctorBubble');
 const resumenCard = document.getElementById('resumenCard');
 const resumenBox = document.getElementById('resumen');
+const reintentarBtn = document.getElementById('reintentarBtn');
 const audioBtn = document.getElementById('audioBtn');
 const consentimiento = document.getElementById('consentimiento');
 
@@ -235,6 +236,16 @@ async function finishCall(motivo) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
+        // Cortada antes de terminar: el link sigue sirviendo, recargar arranca de cero
+        if (data.incompleta) {
+            callStatus.textContent = 'La llamada se cortó';
+            document.getElementById('resumenTitulo').textContent = 'La llamada se cortó';
+            resumenBox.textContent = 'No alcanzamos a terminar la entrevista. Busca un lugar con buena señal, revisa que el micrófono esté activo y vuelve a intentarlo.';
+            reintentarBtn.hidden = false;
+            resumenCard.hidden = false;
+            return;
+        }
+
         callStatus.textContent = data.demo ? 'Demo: el resumen no se envió a nadie' : 'Resumen enviado. Gracias.';
         if (data.resumen) {
             resumenBox.textContent = data.resumen;
@@ -252,6 +263,7 @@ callButton.addEventListener('click', startCall);
 callButton.disabled = !consentimiento.checked;
 consentimiento.addEventListener('change', () => { callButton.disabled = !consentimiento.checked; });
 endCallBtn.addEventListener('click', () => finishCall('boton'));
+reintentarBtn.addEventListener('click', () => location.reload());
 audioBtn.addEventListener('click', () => room?.startAudio());
 
 // Igual que la llamada de voz: si el paciente se va a otra app mas de 30 s, se cierra.

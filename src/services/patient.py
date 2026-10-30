@@ -58,13 +58,15 @@ def fetch_patient_data(_id):
         with conn.cursor() as cur:
             # Verificar si la llamada ya fue realizada
             cur.execute(
-                'SELECT "resumenLlamada" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1',
+                'SELECT "resumenLlamada", empresa FROM "HistoriaClinica" WHERE _id = %s LIMIT 1',
                 (_id,)
             )
             historia = cur.fetchone()
             if historia and historia[0]:
                 logger.info("Link ya usado para _id: %s", _id)
                 return {'used': True}
+            # El medico virtual la confirma en vez de preguntarla (ver avatar.empresa_de_la_orden)
+            empresa = ((historia[1] if historia else None) or '').strip()
 
             columns = ['primer_nombre', 'celular'] + list(SALUD_COLS.keys()) + list(FAMILIA_COLS.keys())
             columns_str = ', '.join(columns)
@@ -87,11 +89,12 @@ def fetch_patient_data(_id):
                     return {
                         'found': False,
                         'celular': celular,
-                        'primerNombre': nombre
+                        'primerNombre': nombre,
+                        'empresa': empresa
                     }
                 else:
                     logger.error("No se encontro celular en HistoriaClinica para _id: %s", _id)
-                    return {'found': False, 'celular': None, 'primerNombre': nombre}
+                    return {'found': False, 'celular': None, 'primerNombre': nombre, 'empresa': empresa}
 
             row_dict = dict(zip(columns, row))
 
@@ -103,7 +106,8 @@ def fetch_patient_data(_id):
                 'primerNombre': row_dict.get('primer_nombre') or '',
                 'celular': row_dict.get('celular') or '',
                 'encuestaSalud': encuesta_salud,
-                'antecedentesFamiliares': antecedentes_familiares
+                'antecedentesFamiliares': antecedentes_familiares,
+                'empresa': empresa
             }
 
 

@@ -238,8 +238,18 @@ def avatar_end():
 
         # La transcripcion del navegador llega al instante; la de LiveAvatar es el respaldo
         turnos = data.get('transcript') or avatar.fetch_transcript(session_id)
-        if paciente is not None and not turnos:
-            return jsonify({'error': 'Sin transcripcion'}), 422
+
+        # Cortada antes de la despedida: no hay resumen, asi que el link sigue sirviendo (se gasta
+        # cuando se guarda resumenLlamada) y NUBIA no la marca ATENDIDO. La evidencia si se guarda,
+        # para que el equipo vea el intento en la ficha.
+        if paciente is not None and not avatar.entrevista_completa(turnos):
+            logger.info("Entrevista incompleta %s (%d turnos)", _id or 'demo', len(turnos))
+            try:
+                grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
+                                             avatar.RESUMEN_INCOMPLETA, turnos, data.get('ref'), data.get('inicio'))
+            except Exception as e:
+                logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
+            return jsonify({'success': True, 'incompleta': True})
 
         resumen = avatar.generar_resumen(paciente, turnos)
         logger.info("Resumen avatar %s: %s", _id or 'demo', resumen[:200])

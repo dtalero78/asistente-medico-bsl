@@ -278,6 +278,21 @@ body.avatar-page {
 }
 .vc-resumen h2 { font-size: 1.15rem; font-weight: 500; margin-bottom: 10px; }
 .vc-resumen pre { white-space: pre-wrap; font-family: inherit; line-height: 1.5; }
+.vc-resumen .vc-reintentar {
+    margin-top: 16px;
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #0b5cff;
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.vc-resumen .vc-reintentar:hover { background: #2a71ff; }
+.vc-resumen .vc-reintentar:focus-visible { outline: 3px solid #8fb6ff; outline-offset: 3px; }
 
 .vc-audio {
     background: #fff;

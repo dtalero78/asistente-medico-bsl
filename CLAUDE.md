@@ -90,6 +90,10 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
   avatar; la voz queda siempre en `/voz`. `LIVEAVATAR_SANDBOX=1` = avatar Wayne, 1 min, gratis.
 - Sin `_id` en la URL usa un paciente demo y NO despacha nada (ni correo, ni WhatsApp, ni BD).
 - No hay tool `sendEmail`: el resumen sale de la transcripción con gpt-4o-mini al terminar.
+- Entrevista incompleta (sin la despedida o con menos de 4 respuestas, `avatar.entrevista_completa`):
+  no hay resumen ni WhatsApp, el link sigue sirviendo (se gasta al guardar `resumenLlamada`) y el
+  paciente ve «Intentar de nuevo». Así NUBIA no la marca ATENDIDO. La evidencia sí va a Spaces.
+- La empresa de la orden llega al agente como `{{empresa}}`: la confirma; si es PARTICULAR, la pregunta.
 - Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
 - Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).

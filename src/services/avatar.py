@@ -17,6 +17,10 @@ API = "https://api.liveavatar.com/v1"
 # Unico avatar disponible en sandbox (sesiones de ~1 min, sin consumir creditos)
 SANDBOX_AVATAR_ID = "dd73ea75-1218-4ef3-92ce-606d5f7fbc0a"
 FRASE_CIERRE = "estoy generando tu resumen"
+# Una entrevista completa tiene 6 respuestas (minuto, salud, familia, trabajo, accidentes, empresa);
+# con 4 se toleran respuestas que el paciente junta en un solo turno
+MIN_RESPUESTAS = 4
+RESUMEN_INCOMPLETA = "Entrevista incompleta: la llamada se corto antes de terminar. No se genero resumen."
 
 PACIENTE_DEMO = {
     'primerNombre': 'Carlos',
@@ -92,17 +96,34 @@ def saludo(paciente):
     return f"Hola {nombre}, soy el bot de validacion preconsulta de BSL. ¿Tienes un minuto para unas preguntas rapidas?"
 
 
+def empresa_de_la_orden(paciente):
+    """La empresa de la orden, o 'no indicada'. Casi todas las de SANITHELP-JJ dicen PARTICULAR."""
+    empresa = ((paciente or {}).get('empresa') or '').strip()
+    return 'no indicada' if not empresa or empresa.upper() == 'PARTICULAR' else empresa
+
+
+def entrevista_completa(turnos):
+    """La entrevista cuenta solo si el medico llego a la despedida y el paciente respondio. Sin esto,
+    una llamada cortada (microfono mudo, sin senal) salia con un resumen de "No respondio" o con los
+    datos del formulario, gastaba el link y NUBIA la marcaba APTO (Jose y Diana, 30-oct)."""
+    cierre = any(t['role'] != 'user' and FRASE_CIERRE in t['text'].lower() for t in turnos)
+    # "..." es silencio, no respuesta
+    respuestas = [t for t in turnos if t['role'] == 'user' and len(re.sub(r'\W', '', t['text'])) >= 2]
+    return cierre and len(respuestas) >= MIN_RESPUESTAS
+
+
 def variables_agente(paciente, nombre=None):
     """Valores de {{...}} del prompt del agente de ElevenLabs (scripts/agente-avatar/prompt.md).
     Sin formulario (paciente None) el nombre viene de la orden."""
     if paciente is None:
         return {'nombre': (nombre or '').strip() or 'paciente', 'formulario_completo': 'no',
-                'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno'}
+                'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno', 'empresa': 'no indicada'}
     return {
         'nombre': (paciente.get('primerNombre') or '').strip(),
         'formulario_completo': 'si',
         'historial_salud': ", ".join(paciente.get('encuestaSalud') or []) or 'ninguno',
         'antecedentes_familiares': ", ".join(paciente.get('antecedentesFamiliares') or []) or 'ninguno',
+        'empresa': empresa_de_la_orden(paciente),
     }
 
 
@@ -246,6 +267,7 @@ def generar_resumen(paciente, turnos):
 Lo que el paciente reporto antes en su formulario:
 - Historial de salud: {salud}
 - Antecedentes familiares: {familia}
+- Empresa en la orden: {empresa_de_la_orden(paciente)}
 
 Transcripcion:
 {conversacion}
@@ -255,6 +277,8 @@ Escribe el resumen EXACTAMENTE con este formato. Reglas:
 - Relaciona cada respuesta con lo que reporto en el formulario (ej. "Dolor de espalda: en tratamiento actualmente").
 - Si el paciente cuenta en la entrevista algo que NO reporto en el formulario (una condicion, un medicamento, un antecedente familiar), agregale "(no estaba en el formulario)" para que el medico lo note.
 - Usa solo lo que el paciente dijo en la entrevista; no inventes nada.
+- Un dato del formulario que el paciente NO confirmo en la entrevista va como "segun formulario, no lo confirmo en la entrevista". Nunca escribas "reporta" o "refiere" de algo que no dijo en la entrevista.
+- Si el paciente confirmo la empresa de la orden ("si"), escribe el nombre de esa empresa.
 - Si un punto no se alcanzo a preguntar o el paciente no respondio, escribe "No respondio".
 
 Resumen de la entrevista:

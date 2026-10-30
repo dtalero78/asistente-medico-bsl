@@ -9,7 +9,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 os.environ.setdefault('OPENAI_API_KEY', 'test')
 
-from services.avatar import entrevista_completa, empresa_de_la_orden  # noqa: E402
+from services.avatar import entrevista_completa, empresa_de_la_orden, pregunta_empresa  # noqa: E402
 
 CIERRE = {'role': 'assistant', 'text': 'Gracias por tu tiempo, estoy generando tu resumen. No cierres esta ventana.'}
 
@@ -47,11 +47,22 @@ class TestEmpresaDeLaOrden(unittest.TestCase):
 
     def test_particular_o_vacia_no_se_confirma(self):
         for empresa in [None, '', '  ', 'PARTICULAR', 'Particular']:
-            self.assertEqual(empresa_de_la_orden({'empresa': empresa}), 'no indicada', empresa)
-        self.assertEqual(empresa_de_la_orden(None), 'no indicada')
+            self.assertIsNone(empresa_de_la_orden({'empresa': empresa}), empresa)
+        self.assertIsNone(empresa_de_la_orden(None))
 
     def test_nombre_real(self):
         self.assertEqual(empresa_de_la_orden({'empresa': ' WELTNEU CO '}), 'WELTNEU CO')
+
+    def test_pregunta_sin_empresa_no_nombra_ninguna(self):
+        # Haiku leia "no indicada" como si fuera el nombre: "¿El certificado es para no indicada?"
+        for paciente in [None, {'empresa': 'PARTICULAR'}]:
+            texto = pregunta_empresa(paciente)
+            self.assertIn('para qué empresa', texto)
+            self.assertNotIn('indicada', texto)
+            self.assertNotIn('PARTICULAR', texto)
+
+    def test_pregunta_con_empresa_la_confirma(self):
+        self.assertIn('¿El certificado es para WELTNEU CO?', pregunta_empresa({'empresa': 'WELTNEU CO'}))
 
 
 if __name__ == '__main__':

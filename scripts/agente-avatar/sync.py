@@ -36,8 +36,8 @@ config = {
                     'formulario_completo': 'si',
                     'historial_salud': 'Dolor de espalda, Usa anteojos',
                     'antecedentes_familiares': 'Hipertension',
-                    # La de la orden; 'no indicada' si dice PARTICULAR (avatar.empresa_de_la_orden)
-                    'empresa': 'no indicada',
+                    # El paso de la empresa ya armado (avatar.pregunta_empresa)
+                    'pregunta_empresa': 'Pregunta para qué empresa solicita el certificado médico.',
                     # Codigo de la sesion (no lo usa el prompt): con el se encuentra el audio
                     # de cada entrevista en src/services/grabacion.py
                     'ref_bsl': 'demo',

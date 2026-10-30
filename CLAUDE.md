@@ -93,7 +93,7 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - Entrevista incompleta (sin la despedida o con menos de 4 respuestas, `avatar.entrevista_completa`):
   no hay resumen ni WhatsApp, el link sigue sirviendo (se gasta al guardar `resumenLlamada`) y el
   paciente ve «Intentar de nuevo». Así NUBIA no la marca ATENDIDO. La evidencia sí va a Spaces.
-- La empresa de la orden llega al agente como `{{empresa}}`: la confirma; si es PARTICULAR, la pregunta.
+- El paso de la empresa llega armado en `{{pregunta_empresa}}` (`avatar.pregunta_empresa`): confirma la de la orden; si es PARTICULAR, la pregunta.
 - Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
 - Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).

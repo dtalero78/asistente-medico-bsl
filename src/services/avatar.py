@@ -97,9 +97,19 @@ def saludo(paciente):
 
 
 def empresa_de_la_orden(paciente):
-    """La empresa de la orden, o 'no indicada'. Casi todas las de SANITHELP-JJ dicen PARTICULAR."""
+    """La empresa de la orden, o None. Casi todas las de SANITHELP-JJ dicen PARTICULAR."""
     empresa = ((paciente or {}).get('empresa') or '').strip()
-    return 'no indicada' if not empresa or empresa.upper() == 'PARTICULAR' else empresa
+    return None if not empresa or empresa.upper() == 'PARTICULAR' else empresa
+
+
+def pregunta_empresa(paciente):
+    """El paso de la empresa ya armado para el agente. Con la empresa como variable suelta y
+    "no indicada" cuando faltaba, Haiku preguntaba "¿El certificado es para no indicada?" (30-oct)."""
+    empresa = empresa_de_la_orden(paciente)
+    if not empresa:
+        return ('Pregunta para qué empresa solicita el certificado médico. Con su respuesta pasa a la '
+                'despedida, sin pedirle que la confirme.')
+    return f'Confirma la empresa de su orden: "¿El certificado es para {empresa}?". Si dice que no, pregunta para cuál.'
 
 
 def entrevista_completa(turnos):
@@ -117,13 +127,17 @@ def variables_agente(paciente, nombre=None):
     Sin formulario (paciente None) el nombre viene de la orden."""
     if paciente is None:
         return {'nombre': (nombre or '').strip() or 'paciente', 'formulario_completo': 'no',
-                'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno', 'empresa': 'no indicada'}
+                'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno',
+                'pregunta_empresa': pregunta_empresa(None)}
     return {
         'nombre': (paciente.get('primerNombre') or '').strip(),
         'formulario_completo': 'si',
         'historial_salud': ", ".join(paciente.get('encuestaSalud') or []) or 'ninguno',
         'antecedentes_familiares': ", ".join(paciente.get('antecedentesFamiliares') or []) or 'ninguno',
-        'empresa': empresa_de_la_orden(paciente),
+        'pregunta_empresa': pregunta_empresa(paciente),
+        # El prompt anterior usaba {{empresa}}: se sigue mandando para que ninguna llamada falle
+        # mientras el servidor y el agente de ElevenLabs no esten en la misma version
+        'empresa': empresa_de_la_orden(paciente) or 'no indicada',
     }
 
 
@@ -267,7 +281,7 @@ def generar_resumen(paciente, turnos):
 Lo que el paciente reporto antes en su formulario:
 - Historial de salud: {salud}
 - Antecedentes familiares: {familia}
-- Empresa en la orden: {empresa_de_la_orden(paciente)}
+- Empresa en la orden: {empresa_de_la_orden(paciente) or "la orden no la trae"}
 
 Transcripcion:
 {conversacion}

@@ -17,3 +17,4 @@ psycopg_pool>=3.1.0
 openai>=1.0.0
 twilio>=9.0.0
 phonenumbers==9.0.40
+boto3>=1.34

@@ -77,3 +77,19 @@ Configured for Heroku via `Procfile`:
 ```
 web: python src/app.py
 ```
+
+## Avatar en video (`/avatar`)
+
+Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agente de ElevenLabs
+(cerebro Claude Haiku + voz "Alirio") conduce la entrevista. Archivos: `src/services/avatar.py`
+(sesión, resumen), `src/services/grabacion.py` (audio + fotos a Spaces), `src/static/js/avatar.js`,
+`src/templates/avatar.html`. El agente se crea/actualiza con `scripts/agente-avatar/sync.py` desde
+`scripts/agente-avatar/prompt.md`.
+
+- `AVATAR_EN_INICIO=1` hace que `/` (el link de NUBIA, plantilla `recordatorio_cita`) muestre el
+  avatar; la voz queda siempre en `/voz`. `LIVEAVATAR_SANDBOX=1` = avatar Wayne, 1 min, gratis.
+- Sin `_id` en la URL usa un paciente demo y NO despacha nada (ni correo, ni WhatsApp, ni BD).
+- No hay tool `sendEmail`: el resumen sale de la transcripción con gpt-4o-mini al terminar.
+- Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
+  BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
+- Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).

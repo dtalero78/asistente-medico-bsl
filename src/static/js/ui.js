@@ -7,9 +7,9 @@ export const timer = document.querySelector('.timer');
 export const speakNow = document.querySelector('.speak-now');
 export const loader = document.querySelector('.loader');
 
-// Inicializar estado visual
-speakNow.style.display = 'none';
-timer.style.display = 'none';
+// Inicializar estado visual (no existen en /avatar)
+if (speakNow) speakNow.style.display = 'none';
+if (timer) timer.style.display = 'none';
 
 export function showNotification(message, type) {
     const notification = document.createElement('div');

@@ -21,10 +21,24 @@ from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
 from services.session import create_realtime_session
+from services import avatar, grabacion
+from services.avatar import PACIENTE_DEMO
+import time
 
 
 @app.route('/')
 def index():
+    # El link que manda NUBIA a la hora de la cita (plantilla recordatorio_cita de BSL-PLATAFORMA2)
+    # apunta aqui y su URL esta fija en la plantilla aprobada por Meta: el interruptor decide si el
+    # paciente ve el avatar en video o la llamada de voz, sin tocar la plantilla.
+    if os.getenv('AVATAR_EN_INICIO') == '1':
+        return render_template('avatar.html')
+    return render_template('call.html')
+
+
+@app.route('/voz')
+def voz():
+    """La llamada de voz de siempre, aunque el avatar este en el inicio."""
     return render_template('call.html')
 
 
@@ -71,8 +85,13 @@ def get_session():
 
 @app.route('/send-email', methods=['POST'])
 def send_email():
+    body, status = despachar_resumen(request.json)
+    return jsonify(body), status
+
+
+def despachar_resumen(data):
+    """Email + WhatsApp (resumen y sugerencias) + PostgreSQL. Lo usan la voz y el avatar."""
     try:
-        data = request.json
         message = data.get('message')
         _id = data.get('_id')
         nombre = data.get('nombre', 'Paciente')
@@ -85,14 +104,14 @@ def send_email():
         })
 
         if not message:
-            return jsonify({'error': 'Falta el mensaje'}), 400
+            return {'error': 'Falta el mensaje'}, 400
 
         # Caso especial: Usuario sin formulario completado
         if message == "FORMULARIO_PENDIENTE":
             to = data.get('to')
             if not to:
                 logger.error("No se proporciono numero de WhatsApp del paciente")
-                return jsonify({'error': 'Falta numero de WhatsApp'}), 400
+                return {'error': 'Falta numero de WhatsApp'}, 400
 
             link_formulario = f"https://bsl-plataforma.com/?_id={_id}"
             mensaje_formulario = f"""Hola, gracias por contactarte con BSL.
@@ -119,10 +138,10 @@ Si tienes alguna duda, no dudes en contactarnos.
                 logger.warning("Template formulario fallo (%s); usando texto libre", resultado_form.get('error'))
                 send_text_message(to, mensaje_formulario)
 
-            return jsonify({
+            return {
                 'success': True,
                 'message': 'Link de formulario enviado correctamente'
-            })
+            }, 200
 
         # Flujo normal: Usuario con formulario completado
         send_summary_email(message)
@@ -159,14 +178,96 @@ Si tienes alguna duda, no dudes en contactarnos.
             logger.info("Resultado al guardar en PostgreSQL: %s", resultado_pg)
 
         logger.info("Envio completo: email, WhatsApp (resumen + sugerencias), y PostgreSQL")
-        return jsonify({
+        return {
             'success': True,
             'message': 'Resumen y sugerencias enviados correctamente'
-        })
+        }, 200
 
     except Exception as e:
         logger.error("Error en /send-email: %s", str(e))
-        return jsonify({'error': f"Email error: {str(e)}"}), 500
+        return {'error': f"Email error: {str(e)}"}, 500
+
+
+# --- Avatar en video (LiveAvatar). Ver services/avatar.py ---
+
+@app.route('/avatar')
+def avatar_page():
+    return render_template('avatar.html')
+
+
+@app.route('/avatar/session', methods=['POST'])
+def avatar_session():
+    """Sin _id usa el paciente demo: sirve para probar sin tocar pacientes reales."""
+    _id = (request.json or {}).get('_id')
+    try:
+        if _id:
+            result = fetch_patient_data(_id)
+            if result.get('used'):
+                return jsonify({'error': 'link_usado'}), 403
+            paciente = result if result.get('found') else None
+        else:
+            paciente = PACIENTE_DEMO
+
+        sesion = avatar.start_session(paciente, f"bsl-{_id or 'demo'}-{int(time.time())}")
+        return jsonify(sesion)
+    except Exception as e:
+        logger.error("Error en /avatar/session: %s", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/avatar/end', methods=['POST'])
+def avatar_end():
+    """Cierra la sesion, arma el resumen desde la transcripcion y lo despacha (salvo en demo)."""
+    data = request.json or {}
+    session_id = data.get('session_id')
+    _id = data.get('_id')
+    avatar.stop_session(session_id)
+    if data.get('context_id'):
+        avatar.delete_context(data['context_id'])
+
+    try:
+        if _id:
+            result = fetch_patient_data(_id)
+            if result.get('used'):
+                return jsonify({'error': 'link_usado'}), 403
+            paciente = result if result.get('found') else None
+            celular = result.get('celular')
+        else:
+            paciente, celular = PACIENTE_DEMO, None
+
+        # La transcripcion del navegador llega al instante; la de LiveAvatar es el respaldo
+        turnos = data.get('transcript') or avatar.fetch_transcript(session_id)
+        if paciente is not None and not turnos:
+            return jsonify({'error': 'Sin transcripcion'}), 422
+
+        resumen = avatar.generar_resumen(paciente, turnos)
+        logger.info("Resumen avatar %s: %s", _id or 'demo', resumen[:200])
+
+        # Evidencia (audio de ElevenLabs + fotos del navegador) en Spaces. Si falla, el
+        # resumen igual se despacha: no se le cobra al paciente un error de almacenamiento.
+        carpeta = None
+        try:
+            carpeta = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
+                                                   resumen, turnos, data.get('ref'), data.get('inicio'))
+        except Exception as e:
+            logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
+
+        if not _id:
+            return jsonify({'success': True, 'demo': True, 'resumen': resumen, 'grabacion': carpeta})
+
+        body, status = despachar_resumen({
+            'message': resumen,
+            '_id': _id,
+            'to': celular,
+            'nombre': (paciente or {}).get('primerNombre') or 'Paciente',
+            'encuestaSalud': (paciente or {}).get('encuestaSalud', []),
+            'antecedentesFamiliares': (paciente or {}).get('antecedentesFamiliares', []),
+        })
+        body['resumen'] = resumen
+        return jsonify(body), status
+    except Exception as e:
+        logger.error("Error en /avatar/end: %s", str(e))
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

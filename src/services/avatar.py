@@ -253,6 +253,7 @@ Transcripcion:
 Escribe el resumen EXACTAMENTE con este formato. Reglas:
 - Redacta en tercera persona y en lenguaje clinico breve, no cites literalmente al paciente.
 - Relaciona cada respuesta con lo que reporto en el formulario (ej. "Dolor de espalda: en tratamiento actualmente").
+- Si el paciente cuenta en la entrevista algo que NO reporto en el formulario (una condicion, un medicamento, un antecedente familiar), agregale "(no estaba en el formulario)" para que el medico lo note.
 - Usa solo lo que el paciente dijo en la entrevista; no inventes nada.
 - Si un punto no se alcanzo a preguntar o el paciente no respondio, escribe "No respondio".
 

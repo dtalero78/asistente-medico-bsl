@@ -87,7 +87,11 @@ def _bajar_audio_elevenlabs(conversation_id, intentos=12, espera=10):
 
 def buscar_conversacion(ref, inicio, intentos=6, espera=5):
     """Conversacion de ElevenLabs de esta sesion, por el ref_bsl que se le paso al agente.
-    La lista no trae las variables: se revisa el detalle de las que empezaron desde la sesion."""
+    La lista no trae las variables: se revisa el detalle de las que empezaron desde la sesion.
+
+    Cuando el agente cuelga, LiveAvatar lo reconecta un instante y queda una segunda conversacion
+    con el mismo ref, vacia (0 s, "Client disconnected"). Hasta el 30-oct se tomaba la mas reciente
+    y se guardaba ese audio de 4 KB: se elige la mas larga de las que tienen el ref."""
     headers = {"xi-api-key": os.getenv("ELEVENLABS_API_KEY")}
     base = "https://api.elevenlabs.io/v1/convai/conversations"
     for _ in range(intentos):
@@ -96,11 +100,14 @@ def buscar_conversacion(ref, inicio, intentos=6, espera=5):
             "call_start_after_unix": int(inicio) - 60,
             "page_size": 30,
         }).json().get("conversations", [])
+        candidatas = []
         for c in lista:
             detalle = requests.get(f"{base}/{c['conversation_id']}", headers=headers, timeout=15).json()
             variables = (detalle.get("conversation_initiation_client_data") or {}).get("dynamic_variables") or {}
             if variables.get("ref_bsl") == ref:
-                return c["conversation_id"]
+                candidatas.append((c.get("call_duration_secs") or 0, c["conversation_id"]))
+        if candidatas and max(candidatas)[0] > 0:
+            return max(candidatas)[1]
         time.sleep(espera)
     return None
 

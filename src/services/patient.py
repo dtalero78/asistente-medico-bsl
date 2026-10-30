@@ -76,19 +76,22 @@ def fetch_patient_data(_id):
                 logger.warning("No se encontro paciente en formularios para _id: %s", _id)
                 logger.info("Buscando celular en HistoriaClinica...")
 
-                cur.execute('SELECT celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (_id,))
+                # El nombre tambien: sin el, el avatar saludaba "Hola , soy..." y el WhatsApp "Hola Paciente"
+                cur.execute('SELECT celular, "primerNombre" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (_id,))
                 historia_row = cur.fetchone()
+                nombre = ((historia_row[1] if historia_row else None) or '').strip().title()
 
                 if historia_row and historia_row[0]:
                     celular = historia_row[0].strip()
                     logger.info("Celular encontrado en HistoriaClinica: %s", celular)
                     return {
                         'found': False,
-                        'celular': celular
+                        'celular': celular,
+                        'primerNombre': nombre
                     }
                 else:
                     logger.error("No se encontro celular en HistoriaClinica para _id: %s", _id)
-                    return {'found': False, 'celular': None}
+                    return {'found': False, 'celular': None, 'primerNombre': nombre}
 
             row_dict = dict(zip(columns, row))
 

@@ -92,11 +92,12 @@ def saludo(paciente):
     return f"Hola {nombre}, soy el bot de validacion preconsulta de BSL. ¿Tienes un minuto para unas preguntas rapidas?"
 
 
-def variables_agente(paciente):
-    """Valores de {{...}} del prompt del agente de ElevenLabs (scripts/agente-avatar/prompt.md)."""
+def variables_agente(paciente, nombre=None):
+    """Valores de {{...}} del prompt del agente de ElevenLabs (scripts/agente-avatar/prompt.md).
+    Sin formulario (paciente None) el nombre viene de la orden."""
     if paciente is None:
-        return {'nombre': '', 'formulario_completo': 'no', 'historial_salud': 'ninguno',
-                'antecedentes_familiares': 'ninguno'}
+        return {'nombre': (nombre or '').strip() or 'paciente', 'formulario_completo': 'no',
+                'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno'}
     return {
         'nombre': (paciente.get('primerNombre') or '').strip(),
         'formulario_completo': 'si',
@@ -105,7 +106,7 @@ def variables_agente(paciente):
     }
 
 
-def start_session(paciente, nombre_sesion):
+def start_session(paciente, nombre_sesion, nombre=None):
     """Arranca la sesion segun el modo configurado en .env, en orden de prioridad:
 
     1. ELEVENLABS_AGENT_ID: LITE + agente de ElevenLabs (cerebro y voz en ElevenLabs, como el
@@ -132,7 +133,7 @@ def start_session(paciente, nombre_sesion):
             "elevenlabs_agent_config": {
                 "secret_id": os.getenv("LIVEAVATAR_ELEVENLABS_SECRET_ID"),
                 "agent_id": agent_id,
-                "dynamic_variables": {**variables_agente(paciente), "ref_bsl": ref},
+                "dynamic_variables": {**variables_agente(paciente, nombre), "ref_bsl": ref},
             },
         }
     else:

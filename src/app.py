@@ -205,10 +205,11 @@ def avatar_session():
             if result.get('used'):
                 return jsonify({'error': 'link_usado'}), 403
             paciente = result if result.get('found') else None
+            nombre = result.get('primerNombre')
         else:
-            paciente = PACIENTE_DEMO
+            paciente, nombre = PACIENTE_DEMO, None
 
-        sesion = avatar.start_session(paciente, f"bsl-{_id or 'demo'}-{int(time.time())}")
+        sesion = avatar.start_session(paciente, f"bsl-{_id or 'demo'}-{int(time.time())}", nombre)
         return jsonify(sesion)
     except Exception as e:
         logger.error("Error en /avatar/session: %s", str(e))
@@ -259,7 +260,7 @@ def avatar_end():
             'message': resumen,
             '_id': _id,
             'to': celular,
-            'nombre': (paciente or {}).get('primerNombre') or 'Paciente',
+            'nombre': (paciente or result).get('primerNombre') or 'Paciente',
             'encuestaSalud': (paciente or {}).get('encuestaSalud', []),
             'antecedentesFamiliares': (paciente or {}).get('antecedentesFamiliares', []),
         })

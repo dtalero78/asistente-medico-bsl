@@ -171,7 +171,7 @@ Si tienes alguna duda, no dudes en contactarnos.
             else:
                 send_text_message(to, message)
                 logger.info("Resumen enviado por WhatsApp (free-text fallback)")
-            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id)
+            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares)
 
         if _id:
             resultado_pg = guardar_resumen(_id, message)

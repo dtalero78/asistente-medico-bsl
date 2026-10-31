@@ -4,7 +4,7 @@
 // memoria y se guardan junto con la entrevista en /avatar/end.
 import { showNotification } from './ui.js';
 import { checkMicrophonePermission, showPermissionError } from './permissions.js';
-import { precargarModelo, examenOjos } from './ojos.js';
+import { precargarModelo, examenOjos, pintarResultados } from './ojos.js';
 import { crearGuia } from './guia-voz.js';
 
 const { Room, RoomEvent, Track } = window.LivekitClient;
@@ -18,6 +18,8 @@ const selfVideo = document.getElementById('selfVideo');
 const doctorBubble = document.getElementById('doctorBubble');
 const resumenCard = document.getElementById('resumenCard');
 const resumenBox = document.getElementById('resumen');
+const ojosResultados = document.getElementById('ojosResultados');
+const cerrarAviso = document.getElementById('cerrarAviso');
 const reintentarBtn = document.getElementById('reintentarBtn');
 const audioBtn = document.getElementById('audioBtn');
 const consentimiento = document.getElementById('consentimiento');
@@ -350,9 +352,11 @@ async function finishCall(motivo) {
             return;
         }
 
-        callStatus.textContent = data.demo ? 'Demo: el resumen no se envió a nadie' : 'Resumen enviado. Gracias.';
+        callStatus.textContent = data.demo ? 'Demo: el resumen no se envió a nadie' : 'Resumen enviado. Ya puedes cerrar esta ventana.';
         if (data.resumen) {
             resumenBox.textContent = data.resumen;
+            pintarResultados(ojosResultados, ojos);
+            cerrarAviso.hidden = false;
             resumenCard.hidden = false;
         }
     } catch (error) {
@@ -379,6 +383,8 @@ function reintentarLlamada() {
     reintentarBtn.hidden = true;
     document.getElementById('resumenTitulo').textContent = 'Consulta finalizada';
     resumenBox.textContent = '';
+    pintarResultados(ojosResultados, null);
+    cerrarAviso.hidden = true;
     callStatus.textContent = 'Listo para iniciar';
     startCall();
 }

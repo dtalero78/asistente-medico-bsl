@@ -136,7 +136,9 @@ para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.
   Spaces), aunque la entrevista se corte; un reintento lo sobreescribe. Si Spaces falla, se guarda
   igual sin fotos. El PDF de PLATAFORMA2 lo pone en IX. Exámenes paraclínicos con las fotos
   incrustadas (`buildPruebaOjosHTML` en `historia-clinica-html.js`, `fotosDePruebaOjos`).
-- **Al paciente no le llegan las cifras**, pero sí una 4a sugerencia de cuidado visual en el WhatsApp
+- **El paciente ve sus resultados en pantalla** al final, bajo el resumen de la consulta: fotos de
+  cada ojo y los tres estudios (`ojos.pintarResultados`, desde lo que quedó en memoria; no pasa por
+  el servidor). Por WhatsApp no le llegan cifras, pero sí una 4a sugerencia de cuidado visual en el WhatsApp
   de sugerencias: `ojos.js` manda `indicadores` (parpadeo, % incompletos, cierres largos, PERCLOS,
   enrojecimiento), `ai.hallazgo_visual` elige UN hallazgo con reglas fijas (umbrales de las banderas
   del escáner) y gpt-4o-mini lo redacta sin cifras. **Nada de pupilas** (experimentales; con iris

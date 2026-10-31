@@ -198,6 +198,60 @@ export async function examenOjos(ui) {
     };
 }
 
+/**
+ * Pinta los resultados de la prueba de ojos bajo el resumen de la consulta: fotos de cada ojo y
+ * las tablas de los tres estudios, en renglones porque la tarjeta es angosta (cabe en un celular).
+ * Todo con textContent: las secciones son texto armado por los estudios.
+ */
+export function pintarResultados(contenedor, resultado) {
+    contenedor.replaceChildren();
+    contenedor.hidden = true;
+    if (!resultado || !resultado.realizado || !(resultado.secciones || []).length) return;
+
+    const el = (tag, clase, texto) => {
+        const n = document.createElement(tag);
+        if (clase) n.className = clase;
+        if (texto != null) n.textContent = texto;
+        return n;
+    };
+
+    contenedor.append(el('h3', 'vc-ojos-titulo', 'Resultados de tu prueba de ojos'));
+
+    if ((resultado.fotos || []).length) {
+        const fotos = el('div', 'vc-ojos-fotos');
+        for (const f of resultado.fotos) {
+            const fig = el('figure');
+            const img = el('img');
+            img.src = f.imagen;
+            img.alt = f.momento === 'ojo-od' ? 'Foto de tu ojo derecho' : 'Foto de tu ojo izquierdo';
+            fig.append(img, el('figcaption', null, f.momento === 'ojo-od' ? 'Ojo derecho (OD)' : 'Ojo izquierdo (OI)'));
+            fotos.append(fig);
+        }
+        contenedor.append(fotos);
+    }
+
+    for (const s of resultado.secciones) {
+        const bloque = el('div', 'vc-ojos-estudio');
+        bloque.append(el('h4', null, s.title));
+        for (const r of s.rows || []) {
+            const fila = el('div', 'vc-ojos-fila');
+            const nombre = el('div', 'vc-ojos-medida');
+            nombre.append(el('span', null, r.label));
+            if (r.exp) nombre.append(el('span', 'vc-ojos-exp', ' (experimental)'));
+            if (r.reading) nombre.append(el('small', null, r.reading));
+            const valor = r.od !== undefined || r.oi !== undefined
+                ? `OD ${r.od ?? '—'} · OI ${r.oi ?? '—'}` : (r.value ?? '—');
+            fila.append(nombre, el('div', 'vc-ojos-valor', valor));
+            bloque.append(fila);
+        }
+        for (const [tipo, msg] of s.flags || []) {
+            bloque.append(el('p', `vc-ojos-bandera ${tipo === 'ok' ? 'ok' : 'alerta'}`, `${tipo === 'ok' ? '✓' : '⚠'} ${msg}`));
+        }
+        contenedor.append(bloque);
+    }
+    contenedor.hidden = false;
+}
+
 // Las cifras con las que el asistente arma la recomendación visual del WhatsApp
 // (ai.hallazgo_visual). Solo las confiables: nada de pupilas, que son experimentales y con iris
 // oscuros dan diferencias entre ojos que no existen.

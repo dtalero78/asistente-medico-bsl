@@ -286,6 +286,55 @@ body.avatar-page {
 }
 .vc-resumen h2 { font-size: 1.15rem; font-weight: 500; margin-bottom: 10px; }
 .vc-resumen pre { white-space: pre-wrap; font-family: inherit; line-height: 1.5; }
+/* Con los resultados de ojos la tarjeta crece: se desplaza por dentro en cualquier pantalla. La
+   llamada ya termino, asi que el circulo del asistente se quita para que no tape la tarjeta */
+.vc-resumen { max-height: calc(100dvh - 48px); overflow-y: auto; }
+.vc[data-estado="fin"] .vc-ficha-doctor { display: none; }
+
+/* Resultados de la prueba de ojos, bajo el resumen */
+.vc-ojos-resultados {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.vc-ojos-resultados[hidden] { display: none; }
+.vc-ojos-titulo { font-size: 1.05rem; font-weight: 500; }
+.vc-ojos-fotos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vc-ojos-fotos figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.vc-ojos-fotos img { width: 100%; height: auto; border-radius: 6px; background: #000; display: block; }
+.vc-ojos-fotos figcaption { font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); text-align: center; }
+.vc-ojos-estudio h4 { font-size: 0.92rem; font-weight: 500; margin-bottom: 6px; color: #8fb6ff; }
+.vc-ojos-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.85rem;
+}
+.vc-ojos-medida { display: flex; flex-wrap: wrap; column-gap: 4px; min-width: 0; }
+.vc-ojos-medida small { flex-basis: 100%; font-size: 0.72rem; color: rgba(255, 255, 255, 0.5); line-height: 1.35; }
+.vc-ojos-exp { font-size: 0.72rem; color: #d29922; }
+.vc-ojos-valor { flex: none; font-variant-numeric: tabular-nums; text-align: right; }
+.vc-ojos-bandera { font-size: 0.8rem; line-height: 1.4; margin-top: 6px; }
+.vc-ojos-bandera.ok { color: #6fd39b; }
+.vc-ojos-bandera.alerta { color: #e7b55a; }
+
+/* Cierre de la consulta: que el paciente sepa que ya terminó todo */
+.vc-cerrar {
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(53, 179, 107, 0.15);
+    color: #6fd39b;
+    text-align: center;
+    font-weight: 500;
+}
+.vc-cerrar[hidden] { display: none; }
 .vc-resumen .vc-reintentar {
     margin-top: 16px;
     width: 100%;

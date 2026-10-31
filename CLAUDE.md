@@ -136,8 +136,12 @@ para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.
   Spaces), aunque la entrevista se corte; un reintento lo sobreescribe. Si Spaces falla, se guarda
   igual sin fotos. El PDF de PLATAFORMA2 lo pone en IX. Exámenes paraclínicos con las fotos
   incrustadas (`buildPruebaOjosHTML` en `historia-clinica-html.js`, `fotosDePruebaOjos`).
-- **No se le muestra al paciente** ni entra al resumen, al WhatsApp ni al certificado: los puntos
-  de corte no están validados y las cifras de pupila son experimentales.
+- **Al paciente no le llegan las cifras**, pero sí una 4a sugerencia de cuidado visual en el WhatsApp
+  de sugerencias: `ojos.js` manda `indicadores` (parpadeo, % incompletos, cierres largos, PERCLOS,
+  enrojecimiento), `ai.hallazgo_visual` elige UN hallazgo con reglas fijas (umbrales de las banderas
+  del escáner) y gpt-4o-mini lo redacta sin cifras. **Nada de pupilas** (experimentales; con iris
+  oscuros dan diferencias falsas). Sin prueba de ojos, siguen siendo 3 sugerencias.
+- En la historia clínica y el certificado la sección se llama «Complemento resultados oculares».
 - Cámara negada → no sigue (pide permitirla). Cualquier otra falla (sin cámara, el modelo no
   carga, error) → `{realizado: false, motivo}` y sigue a la consulta: el médico ve por qué.
 - «Intentar de nuevo» tras una llamada cortada repite solo la entrevista, no la prueba.

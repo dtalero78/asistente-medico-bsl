@@ -71,6 +71,9 @@ def _subir_fotos(carpeta, fotos):
     return keys
 
 
+INDICADORES_OJOS = ("parpadeos_min", "pct_incompletos", "cierres_largos", "perclos", "enrojecimiento_max")
+
+
 def limpiar_ojos(ojos):
     """La prueba de ojos tal como llega del navegador, reducida a lo que pinta la ficha del medico.
 
@@ -102,6 +105,10 @@ def limpiar_ojos(ojos):
                           "rows": filas, "flags": banderas})
 
     duracion = ojos.get("duracion_s")
+    # Cifras para la recomendacion visual del WhatsApp (ai.hallazgo_visual): solo numeros
+    crudos = ojos.get("indicadores") if isinstance(ojos.get("indicadores"), dict) else {}
+    indicadores = {k: float(crudos[k]) for k in INDICADORES_OJOS
+                   if isinstance(crudos.get(k), (int, float)) and not isinstance(crudos.get(k), bool)}
     meta = {
         "realizado": bool(ojos.get("realizado")),
         "motivo": texto(ojos.get("motivo")),
@@ -109,6 +116,7 @@ def limpiar_ojos(ojos):
         "camara": texto(ojos.get("camara"), 20),
         "duracion_s": int(duracion) if isinstance(duracion, (int, float)) else None,
         "secciones": secciones,
+        "indicadores": indicadores,
     }
     fotos = [f for f in (ojos.get("fotos") or [])
              if isinstance(f, dict) and str(f.get("momento", "")).startswith("ojo-")][:2]

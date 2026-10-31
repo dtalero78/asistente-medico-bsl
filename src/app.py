@@ -97,6 +97,7 @@ def despachar_resumen(data):
         nombre = data.get('nombre', 'Paciente')
         encuesta_salud = data.get('encuestaSalud', [])
         antecedentes_familiares = data.get('antecedentesFamiliares', [])
+        indicadores_ojos = data.get('indicadoresOjos')
 
         logger.info("Datos recibidos en /send-email: %s", {
             '_id': _id, 'nombre': nombre,
@@ -171,7 +172,7 @@ Si tienes alguna duda, no dudes en contactarnos.
             else:
                 send_text_message(to, message)
                 logger.info("Resumen enviado por WhatsApp (free-text fallback)")
-            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id)
+            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id, indicadores_ojos)
 
         if _id:
             resultado_pg = guardar_resumen(_id, message)
@@ -273,6 +274,8 @@ def avatar_end():
         if not _id:
             return jsonify({'success': True, 'demo': True, 'resumen': resumen, 'grabacion': carpeta})
 
+        # Solo si la prueba de ojos se hizo: de ahi sale la 4a sugerencia, la visual
+        ojos = grabacion.limpiar_ojos(data.get('ojos'))[0] or {}
         body, status = despachar_resumen({
             'message': resumen,
             '_id': _id,
@@ -280,6 +283,7 @@ def avatar_end():
             'nombre': (paciente or result).get('primerNombre') or 'Paciente',
             'encuestaSalud': (paciente or {}).get('encuestaSalud', []),
             'antecedentesFamiliares': (paciente or {}).get('antecedentesFamiliares', []),
+            'indicadoresOjos': ojos.get('indicadores') if ojos.get('realizado') else None,
         })
         body['resumen'] = resumen
         return jsonify(body), status

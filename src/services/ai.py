@@ -8,9 +8,46 @@ logger = logging.getLogger(__name__)
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 
-def generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares):
-    """Genera 3 sugerencias de salud personalizadas usando OpenAI."""
+# Prueba de ojos → hallazgo para una 4a sugerencia, de cuidado visual. Lo deciden estas reglas, no el
+# modelo: al modelo solo le llega el hallazgo en palabras, nunca las cifras. Nada de pupilas: son
+# experimentales y con iris oscuros dan diferencias entre ojos que no existen. Umbrales = los de las
+# banderas del Escaner Ocular (static/escaner-ocular/src/estudios/fatiga.js y tamizaje.js).
+PARPADEOS_INCOMPLETOS_ALTO = 40   # %
+PARPADEOS_BAJOS = 10              # por minuto
+ENROJECIMIENTO_ALTO = 1.35
+
+
+def hallazgo_visual(indicadores):
+    """Un solo hallazgo, el mas importante, o None si no hubo prueba de ojos (no hay 4a sugerencia)."""
+    if not indicadores:
+        return None
+    i = indicadores
+    if (i.get('cierres_largos') or 0) >= 1:
+        return ('durante la prueba tuvo cierres de ojos prolongados, que pueden indicar somnolencia: '
+                'recomendar dormir bien y no hacer tareas de riesgo (conducir, maquinas) con sueno')
+    if (i.get('pct_incompletos') or 0) > PARPADEOS_INCOMPLETOS_ALTO:
+        return ('muchos de sus parpadeos no cerraron el ojo por completo: recomendar parpadear completo '
+                'a conciencia y hacer pausas de pantalla (regla 20-20-20) para mantener los ojos humedos')
+    if i.get('parpadeos_min') is not None and i['parpadeos_min'] < PARPADEOS_BAJOS:
+        return ('parpadea poco, lo que es comun frente a pantallas y reseca los ojos: recomendar pausas '
+                'para los ojos, parpadear mas seguido e hidratarse')
+    if (i.get('enrojecimiento_max') or 0) > ENROJECIMIENTO_ALTO:
+        return ('sus ojos se vieron algo enrojecidos: recomendar descansar la vista y, si el enrojecimiento '
+                'persiste, consultar con optometria')
+    return ('la prueba de ojos no mostro hallazgos: dar una recomendacion general de cuidado visual '
+            '(pausas de pantalla, buena iluminacion, distancia adecuada a la pantalla)')
+
+
+def generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares, hallazgo_ojos=None):
+    """Genera 3 sugerencias de salud personalizadas usando OpenAI, y una 4a de cuidado visual si el
+    paciente hizo la prueba de ojos (hallazgo_ojos, de hallazgo_visual)."""
     try:
+        cuantas = 4 if hallazgo_ojos else 3
+        visual = f"""
+- La sugerencia 4 es de cuidado visual y empieza con 👁️. Basala en lo que mostro la prueba de ojos
+  que hizo con la camara: {hallazgo_ojos}. Dilo en lenguaje sencillo, sin cifras, sin mencionar
+  pupilas y sin diagnosticos.""" if hallazgo_ojos else ''
+        formato = '\n'.join(f'{n}. [emoji relevante] [sugerencia]' for n in range(1, cuantas + 1))
         prompt = f"""Eres un asesor de salud ocupacional amable y profesional de BSL.
 
 Datos del paciente:
@@ -18,26 +55,24 @@ Datos del paciente:
 - Condiciones de salud reportadas: {', '.join(encuesta_salud) if encuesta_salud else 'Ninguna'}
 - Antecedentes familiares: {', '.join(antecedentes_familiares) if antecedentes_familiares else 'Ninguno'}
 
-Genera EXACTAMENTE 3 sugerencias de salud personalizadas y practicas para este paciente.
+Genera EXACTAMENTE {cuantas} sugerencias de salud personalizadas y practicas para este paciente.
 
 REGLAS:
-- Cada sugerencia debe ser breve (1-2 oraciones maximo)
+- Cada sugerencia debe ser breve (1-2 oraciones maximo, menos de 180 caracteres)
 - Deben ser consejos preventivos, NO diagnosticos
 - Usa un tono calido y motivador
 - Personaliza segun las condiciones reportadas
-- Si no hay condiciones, da consejos generales de bienestar laboral
+- Si no hay condiciones, da consejos generales de bienestar laboral{visual}
 
 FORMATO DE RESPUESTA (usa exactamente este formato):
-1. [emoji relevante] [sugerencia]
-2. [emoji relevante] [sugerencia]
-3. [emoji relevante] [sugerencia]
+{formato}
 
 Ejemplos de emojis apropiados: 💪 🏃 🥗 😴 💧 🧘 👁️ ❤️ 🩺 🌿"""
 
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
+            max_tokens=400,
             temperature=0.7
         )
 
@@ -50,9 +85,10 @@ Ejemplos de emojis apropiados: 💪 🏃 🥗 😴 💧 🧘 👁️ ❤️ 🩺
         return None
 
 
-def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id=None):
-    """Genera y envia sugerencias personalizadas por WhatsApp."""
-    sugerencias = generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares)
+def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id=None, indicadores_ojos=None):
+    """Genera y envia sugerencias personalizadas por WhatsApp (+1 visual si hubo prueba de ojos)."""
+    sugerencias = generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares,
+                                            hallazgo_visual(indicadores_ojos))
 
     if not sugerencias:
         logger.warning("No se pudieron generar sugerencias")

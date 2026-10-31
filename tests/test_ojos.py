@@ -8,9 +8,12 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+os.environ.setdefault('OPENAI_API_KEY', 'test')
 
 from services import grabacion  # noqa: E402
 from services.grabacion import limpiar_ojos  # noqa: E402
+from services import ai  # noqa: E402
+from services.ai import hallazgo_visual  # noqa: E402
 
 FOTO = 'data:image/jpeg;base64,/9j/4AAQ'
 
@@ -87,6 +90,59 @@ class TestGuardarEntrevista(unittest.TestCase):
         with mock.patch.object(grabacion, '_subir', side_effect=lambda key, *a: key):
             _, prueba = grabacion.guardar_entrevista('orden_1', None, [], 'Resumen', [])
         self.assertIsNone(prueba)
+
+
+
+class TestIndicadoresOjos(unittest.TestCase):
+
+    def test_solo_numeros_de_la_lista(self):
+        meta, _ = limpiar_ojos({'realizado': True, 'indicadores': {
+            'parpadeos_min': 20.4, 'pct_incompletos': 41, 'cierres_largos': 0, 'perclos': 0.011,
+            'enrojecimiento_max': None, 'pupila_od': 0.24, 'perclos_texto': 'alto', 'cierres': True}})
+        self.assertEqual(meta['indicadores'], {'parpadeos_min': 20.4, 'pct_incompletos': 41.0,
+                                               'cierres_largos': 0.0, 'perclos': 0.011})
+
+    def test_sin_indicadores(self):
+        meta, _ = limpiar_ojos({'realizado': True, 'indicadores': 'basura'})
+        self.assertEqual(meta['indicadores'], {})
+
+
+class TestHallazgoVisual(unittest.TestCase):
+
+    def test_sin_prueba_no_hay_cuarta_sugerencia(self):
+        self.assertIsNone(hallazgo_visual(None))
+        self.assertIsNone(hallazgo_visual({}))
+
+    def test_parpadeos_incompletos(self):
+        # El caso del 31-oct: 41 % de parpadeos incompletos, tasa normal, pupilas dispares (no se usan)
+        h = hallazgo_visual({'parpadeos_min': 20.4, 'pct_incompletos': 41, 'cierres_largos': 0, 'enrojecimiento_max': 1.30})
+        self.assertIn('no cerraron el ojo por completo', h)
+
+    def test_somnolencia_va_primero(self):
+        h = hallazgo_visual({'cierres_largos': 2, 'pct_incompletos': 60, 'parpadeos_min': 5})
+        self.assertIn('somnolencia', h)
+
+    def test_parpadeo_bajo_y_enrojecimiento(self):
+        self.assertIn('parpadea poco', hallazgo_visual({'parpadeos_min': 6, 'pct_incompletos': 10}))
+        self.assertIn('enrojecidos', hallazgo_visual({'parpadeos_min': 18, 'enrojecimiento_max': 1.5}))
+
+    def test_todo_normal(self):
+        self.assertIn('no mostro hallazgos', hallazgo_visual({'parpadeos_min': 18, 'pct_incompletos': 10, 'enrojecimiento_max': 1.0}))
+
+    def test_el_prompt_pide_cuatro_sin_cifras(self):
+        respuesta = mock.Mock()
+        respuesta.choices = [mock.Mock(message=mock.Mock(content='1. a\n2. b\n3. c\n4. 👁️ d'))]
+        with mock.patch.object(ai.openai_client.chat.completions, 'create', return_value=respuesta) as crear:
+            ai.generar_sugerencias_salud('Mery', [], [], hallazgo_visual({'pct_incompletos': 41}))
+            prompt = crear.call_args.kwargs['messages'][0]['content']
+            ai.generar_sugerencias_salud('Mery', [], [], None)
+            prompt_sin = crear.call_args.kwargs['messages'][0]['content']
+        self.assertIn('EXACTAMENTE 4', prompt)
+        self.assertIn('4. [emoji relevante]', prompt)
+        self.assertIn('sin cifras', prompt)
+        self.assertNotIn('41', prompt)
+        self.assertIn('EXACTAMENTE 3', prompt_sin)
+        self.assertNotIn('4. [emoji relevante]', prompt_sin)
 
 
 if __name__ == '__main__':

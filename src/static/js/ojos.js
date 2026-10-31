@@ -152,6 +152,7 @@ export async function examenOjos(ui) {
 
     const secciones = [];
     const fotos = [];
+    const crudos = {};   // resultado de cada estudio sin pintar, para los indicadores
     try {
         for (let i = 0; i < PASOS.length; i++) {
             const paso = PASOS[i];
@@ -161,6 +162,7 @@ export async function examenOjos(ui) {
             ui.estado.textContent = 'Escucha la instrucción…';
             await guia.decir(paso.voz);
             const res = await correrEstudio(paso, landmarker, ui, guia);
+            crudos[paso.estudio.id] = res;
             if (res != null && paso.alTerminar) await guia.decir(paso.alTerminar);
             if (res == null) {
                 secciones.push({ title: paso.estudio.nombre, note: 'No se completó: no se detectó el rostro del paciente.' });
@@ -192,6 +194,23 @@ export async function examenOjos(ui) {
         duracion_s: Math.round((Date.now() - inicio) / 1000),
         secciones,
         fotos,
+        indicadores: indicadoresDe(crudos),
+    };
+}
+
+// Las cifras con las que el asistente arma la recomendación visual del WhatsApp
+// (ai.hallazgo_visual). Solo las confiables: nada de pupilas, que son experimentales y con iris
+// oscuros dan diferencias entre ojos que no existen.
+export function indicadoresDe({ tamizaje: t, fatiga: f }) {
+    const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    const rojos = t && t.eyes ? [t.eyes.OD.redness, t.eyes.OI.redness].map(num).filter((v) => v != null) : [];
+    const fatiga = f && f.medible ? f : null;
+    return {
+        parpadeos_min: fatiga ? num(fatiga.parpadeosPorMin) : null,
+        pct_incompletos: fatiga ? num(fatiga.pctIncompletos) : null,
+        cierres_largos: fatiga ? num(fatiga.cierresLargos) : null,
+        perclos: fatiga ? num(fatiga.perclos) : null,
+        enrojecimiento_max: rojos.length ? Math.max(...rojos) : null,
     };
 }
 

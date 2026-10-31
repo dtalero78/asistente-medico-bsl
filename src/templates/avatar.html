@@ -15,9 +15,9 @@
          circulo en la esquina -->
     <main class="vc" id="vc" data-estado="inicio">
         <div class="vc-escenario">
-            <div class="vc-ficha vc-ficha-doctor" id="doctorBubble" aria-label="Video del médico">
+            <div class="vc-ficha vc-ficha-doctor" id="doctorBubble" aria-label="Video del asistente">
                 <video id="avatarVideo" autoplay playsinline></video>
-                <span class="vc-nombre">Médico BSL</span>
+                <span class="vc-nombre">Asistente BSL</span>
             </div>
 
             <div class="vc-ficha vc-ficha-self">
@@ -33,10 +33,10 @@
             <div class="vc-tarjeta">
                 <div class="vc-previa">
                     <span class="vc-monograma" aria-hidden="true">BSL</span>
-                    <span class="vc-previa-texto">El médico se conecta cuando entres</span>
+                    <span class="vc-previa-texto">El asistente se conecta cuando entres</span>
                 </div>
                 <h1>Consulta de validación</h1>
-                <p>Primero una prueba de ojos con la cámara, guiada por voz (unos 2 minutos y medio) y luego hablas con el médico virtual de BSL. Activa tu cámara y tu micrófono.</p>
+                <p>Primero una prueba de ojos con la cámara, guiada por voz (unos 2 minutos y medio) y luego hablas con el asistente virtual de BSL. Activa tu cámara y tu micrófono.</p>
                 <label class="vc-consentimiento">
                     <input type="checkbox" id="consentimiento">
                     <span>Acepto que la consulta se grabe en audio, que se tomen fotos de mi cámara para verificar mi identidad y que las medidas y fotos de la prueba de ojos se guarden para el médico, según la política de tratamiento de datos de BSL.</span>
@@ -66,14 +66,14 @@
              sin otro toque (un solo "Iniciar Consulta" para todo) -->
         <div class="vc-listo">
             <div class="vc-tarjeta">
-                <h1>No pudimos conectar con el médico</h1>
+                <h1>No pudimos conectar con el asistente</h1>
                 <p>Revisa tu señal y vuelve a intentarlo. La prueba de ojos ya quedó hecha.</p>
                 <button id="conectarBtn" class="vc-boton">Intentar de nuevo</button>
             </div>
         </div>
 
         <div class="vc-bar">
-            <button id="audioBtn" class="vc-audio" hidden>Toca para escuchar al doctor</button>
+            <button id="audioBtn" class="vc-audio" hidden>Toca para escuchar al asistente</button>
             <div class="call-status" role="status" aria-live="polite">Listo para iniciar</div>
             <button id="endCallBtn" class="vc-hangup" aria-label="Finalizar consulta" hidden>
                 <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 0 0-2.67-1.85.996.996 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>

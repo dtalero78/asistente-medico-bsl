@@ -72,7 +72,7 @@ body.avatar-page {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 /* El video del avatar viene de medio cuerpo (16:9): se acerca hasta que la cara llena el
-   circulo, y la etiqueta "Medico BSL" queda sobre la boca: tapa el movimiento de los labios,
+   circulo, y la etiqueta "Asistente BSL" queda sobre la boca: tapa el movimiento de los labios,
    que es lo que mas delata que es un avatar. Dependen del encuadre de cada avatar: al cambiar
    LIVEAVATAR_AVATAR_ID hay que recalibrarlos. Shawn Therapist: 2.2 / 50% 28% / 24%.
    Dexter Doctor Sitting: 2.8 / 50% 22% / 24%. */

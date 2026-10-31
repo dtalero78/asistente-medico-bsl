@@ -31,7 +31,7 @@ MODELO = 'eleven_v4_turbo'
 
 # De tu, como el medico. Frases cortas: el paciente esta mirando la camara, no la pantalla.
 TEXTOS = {
-    'intro': 'Hola. Antes de hablar con el médico, vamos a revisar tus ojos con la cámara. '
+    'intro': 'Hola. Antes de hablar con el asistente virtual, vamos a revisar tus ojos con la cámara. '
              'Son unos dos minutos y yo te voy guiando.',
     'tamizaje': 'Primero voy a tomar una foto de tus ojos. Sostén el celular frente a tu cara, a un palmo '
                 'de distancia, con buena luz de frente, y mira la cámara. Yo te voy diciendo si te acercas o '
@@ -59,7 +59,7 @@ TEXTOS = {
     'pupilas-rojo': 'Ahora la pantalla se pone roja, que es como una luz tenue. Así vemos cómo se abren tus pupilas.',
     'pupilas-destello': 'Atento: viene un destello de luz blanca. No cierres los ojos, sigue mirando el punto.',
     'pupilas-listo': 'Listo. Con ese destello vimos cómo reacciona tu pupila a la luz.',
-    'fin': 'Terminamos la prueba de ojos. Ahora te conecto con el médico.',
+    'fin': 'Terminamos la prueba de ojos. Ahora te conecto con el asistente virtual.',
     'camara': 'Necesito que permitas la cámara. Toca el candado junto a la dirección de la página, '
               'permite la cámara y vuelve a intentarlo.',
 }

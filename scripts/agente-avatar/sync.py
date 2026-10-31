@@ -29,7 +29,7 @@ config = {
     'conversation_config': {
         'agent': {
             'language': 'es',
-            'first_message': 'Hola {{nombre}}, soy el médico virtual de BSL. ¿Tienes un minuto para unas preguntas rápidas antes de tu examen?',
+            'first_message': 'Hola {{nombre}}, soy el asistente virtual de BSL. ¿Tienes un minuto para unas preguntas rápidas antes de tu examen?',
             'dynamic_variables': {
                 'dynamic_variable_placeholders': {
                     'nombre': 'Carlos',

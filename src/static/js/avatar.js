@@ -144,7 +144,7 @@ async function pruebaDeOjos() {
 // Sin pantalla intermedia: la voz avisa y entra el medico. Si el navegador bloquea el audio del
 // doctor por no haber toque reciente, sale audioBtn ("Toca para escuchar al doctor").
 async function pasarAlMedico() {
-    ojosUI.titulo.textContent = 'Conectando con el médico…';
+    ojosUI.titulo.textContent = 'Conectando con el asistente…';
     ojosUI.indicacion.textContent = '';
     ojosUI.estado.textContent = '';
     await guia.decir('fin');
@@ -169,7 +169,7 @@ async function startCall() {
     vc.dataset.estado = 'llamada';
 
     try {
-        callStatus.textContent = 'Conectando con el doctor...';
+        callStatus.textContent = 'Conectando con el asistente...';
         const res = await fetch('/avatar/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -212,7 +212,7 @@ async function startCall() {
         console.error('[avatar] Error al iniciar:', error);
         apagarCamara();
         vc.dataset.estado = 'listo';
-        showNotification('No se pudo conectar con el doctor. Intenta de nuevo.', 'error');
+        showNotification('No se pudo conectar con el asistente. Intenta de nuevo.', 'error');
         conectarBtn.disabled = false;
     }
 }
@@ -261,7 +261,7 @@ function onTrack(track) {
 // que lo silenciaba mientras el avatar hablaba, para el ruido de fondo con el VAD de LiveAvatar.)
 function avatarHablando() {
     doctorBubble.classList.add('hablando');
-    callStatus.textContent = 'El doctor está hablando...';
+    callStatus.textContent = 'El asistente está hablando...';
 }
 
 function avatarCallado() {

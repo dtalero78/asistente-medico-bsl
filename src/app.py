@@ -246,7 +246,8 @@ def avatar_end():
             logger.info("Entrevista incompleta %s (%d turnos)", _id or 'demo', len(turnos))
             try:
                 grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
-                                             avatar.RESUMEN_INCOMPLETA, turnos, data.get('ref'), data.get('inicio'))
+                                             avatar.RESUMEN_INCOMPLETA, turnos, data.get('ref'), data.get('inicio'),
+                                             data.get('ojos'))
             except Exception as e:
                 logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
             return jsonify({'success': True, 'incompleta': True})
@@ -259,7 +260,8 @@ def avatar_end():
         carpeta = None
         try:
             carpeta = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
-                                                   resumen, turnos, data.get('ref'), data.get('inicio'))
+                                                   resumen, turnos, data.get('ref'), data.get('inicio'),
+                                                   data.get('ojos'))
         except Exception as e:
             logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
 

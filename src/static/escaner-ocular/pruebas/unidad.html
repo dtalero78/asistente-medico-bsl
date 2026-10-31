@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Pruebas de unidad · Escáner Ocular</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #0d1117; color: #e6edf3; padding: 24px; }
+    h1 { font-size: 16px; }
+    .ok { color: #2ea043; }
+    .fail { color: #f85149; }
+    .grupo { margin: 18px 0 8px; color: #8b98a5; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    li { list-style: none; }
+    #resumen { margin-top: 20px; padding: 12px; border: 1px solid #2a3441; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Pruebas de unidad — algoritmos del Escáner Ocular</h1>
+  <div id="salida"></div>
+  <div id="resumen">corriendo…</div>
+
+  <script type="module">
+import { percentile, integrateTime, median, stdev, sampleRate } from "../src/serie.js";
+import { analizar as analizarFatiga } from "../src/estudios/fatiga.js";
+import { analizar as analizarPupilas } from "../src/estudios/pupilas.js";
+import { trazoPx, pisoLogMAR, SNELLEN, distanciaMm } from "../src/calibracion.js";
+
+const salida = document.getElementById("salida");
+let pasadas = 0, fallidas = 0;
+const fallos = [];
+
+function grupo(nombre) {
+  const h = document.createElement("p");
+  h.className = "grupo";
+  h.textContent = nombre;
+  salida.appendChild(h);
+}
+function comprobar(nombre, condicion, detalle) {
+  const li = document.createElement("li");
+  li.className = condicion ? "ok" : "fail";
+  li.textContent = (condicion ? "✓ " : "✗ ") + nombre + (condicion || !detalle ? "" : "  → " + detalle);
+  salida.appendChild(li);
+  if (condicion) pasadas++; else { fallidas++; fallos.push(nombre + " :: " + detalle); }
+}
+const cerca = (a, b, tol) => a != null && Math.abs(a - b) <= tol;
+
+// ---------------------------------------------------------------- serie.js
+grupo("serie.js — estadística");
+comprobar("percentil 50 de 1..5 es 3", median([1, 2, 3, 4, 5]) === 3, median([1, 2, 3, 4, 5]));
+comprobar("percentil 85 interpola", cerca(percentile([1, 2, 3, 4, 5], 85), 4.4, 1e-9), percentile([1, 2, 3, 4, 5], 85));
+comprobar("ignora null y NaN", median([1, null, 3, NaN, 5]) === 3, median([1, null, 3, NaN, 5]));
+comprobar("stdev de constante es 0", stdev([2, 2, 2]) === 0, stdev([2, 2, 2]));
+comprobar("percentil de lista vacía es null", percentile([], 50) === null);
+
+grupo("serie.js — integración temporal");
+{
+  // Cinco muestras cada 100 ms; la condición se cumple en las dos del medio.
+  const m = [0, 1, 2, 3, 4].map((i) => ({ t: i * 100, v: i === 1 || i === 2 }));
+  const r = integrateTime(m, (s) => s.v, 200);
+  comprobar("tiempo bajo condición = 200 ms", r.conditionMs === 200, r.conditionMs);
+  comprobar("tiempo válido = 400 ms", r.validMs === 400, r.validMs);
+  comprobar("fracción = 0.5", cerca(r.fraction, 0.5, 1e-9), r.fraction);
+}
+{
+  // Un hueco de 5 s no debe atribuirse a ningún estado.
+  const m = [
+    { t: 0, v: true }, { t: 100, v: true },
+    { t: 5100, v: false }, { t: 5200, v: false },
+  ];
+  const r = integrateTime(m, (s) => s.v, 200);
+  comprobar("el hueco se descarta, no se cuenta como válido", r.validMs === 200, r.validMs);
+  comprobar("el hueco se contabiliza aparte", r.droppedMs === 5000, r.droppedMs);
+  comprobar("la condición no hereda el hueco", r.conditionMs === 100, r.conditionMs);
+}
+comprobar("tasa de muestreo de 33.3 ms es ~30 Hz",
+  cerca(sampleRate([0, 1, 2, 3].map((i) => ({ t: i * 33.3 }))), 30, 0.2));
+
+// ---------------------------------------------------------------- fatiga.js
+grupo("fatiga.js — PERCLOS y parpadeo");
+
+// Generador: EAR abierto constante con cierres rectangulares de duración y
+// profundidad conocidas, para poder calcular la respuesta a mano.
+function serieSintetica({ durMs, fps = 30, abierto = 0.30, cierres = [], huecos = [] }) {
+  const dt = 1000 / fps;
+  const out = [];
+  for (let t = 0; t < durMs; t += dt) {
+    if (huecos.some((h) => t >= h.desde && t < h.desde + h.dur)) continue;
+    const c = cierres.find((c) => t >= c.desde && t < c.desde + c.dur);
+    out.push({ t, ear: c ? c.ear : abierto });
+  }
+  return out;
+}
+
+{
+  const abierto = 0.30;
+  // 6 parpadeos profundos (ear 0.02 → cierre 0.93), 4 incompletos (ear 0.10 → cierre 0.67)
+  // y un cierre sostenido de 800 ms. Todos dentro de la ventana de medición.
+  const cierres = [];
+  for (let i = 0; i < 6; i++) cierres.push({ desde: 12000 + i * 3000, dur: 300, ear: 0.02 });
+  for (let i = 0; i < 4; i++) cierres.push({ desde: 32000 + i * 3000, dur: 300, ear: 0.10 });
+  cierres.push({ desde: 50000, dur: 800, ear: 0.02 });
+
+  const m = serieSintetica({ durMs: 60000, cierres });
+  const r = analizarFatiga(m, 0);
+
+  comprobar("el estudio es medible", r.medible === true, r.motivo);
+  comprobar("línea base ≈ EAR abierto", cerca(r.abierto, abierto, 0.005), r.abierto);
+
+  // Solo los cierres con ear < 0.06 superan el criterio P80 (cierre > 0.8).
+  const esperadoCerradoMs = 6 * 300 + 800;
+  const esperadoPerclos = esperadoCerradoMs / r.validoMs;
+  comprobar("PERCLOS coincide con el tiempo cerrado calculado a mano",
+    cerca(r.perclos, esperadoPerclos, 0.01),
+    `obtenido ${r.perclos?.toFixed(4)} vs esperado ${esperadoPerclos.toFixed(4)}`);
+
+  comprobar("cuenta 10 parpadeos (excluye el cierre largo)", r.parpadeos === 10, r.parpadeos);
+  comprobar("1 cierre prolongado", r.cierresLargos === 1, r.cierresLargos);
+  comprobar("40 % de parpadeos incompletos", cerca(r.pctIncompletos, 40, 0.01), r.pctIncompletos);
+  comprobar("duración media ≈ 300 ms", cerca(r.duracionMedia, 300, 40), r.duracionMedia);
+}
+
+{
+  // Mismo patrón, pero con 6 s de frames caídos: PERCLOS no debe inflarse ni desplomarse.
+  const cierres = [];
+  for (let i = 0; i < 6; i++) cierres.push({ desde: 12000 + i * 3000, dur: 300, ear: 0.02 });
+  const sinHueco = analizarFatiga(serieSintetica({ durMs: 60000, cierres }), 0);
+  const conHueco = analizarFatiga(
+    serieSintetica({ durMs: 60000, cierres, huecos: [{ desde: 40000, dur: 6000 }] }), 0);
+
+  comprobar("con frames caídos sigue siendo medible", conHueco.medible === true, conHueco.motivo);
+  comprobar("el hueco se reporta como tiempo descartado",
+    cerca(conHueco.descartadoMs, 6000, 100), conHueco.descartadoMs);
+  comprobar("PERCLOS no se sesga por los frames caídos",
+    cerca(conHueco.perclos, sinHueco.perclos, 0.005),
+    `con hueco ${conHueco.perclos?.toFixed(4)} vs sin hueco ${sinHueco.perclos?.toFixed(4)}`);
+}
+
+{
+  // Rostro perdido más del 40 % de la prueba → no medible.
+  const m = serieSintetica({ durMs: 60000, cierres: [] })
+    .map((s) => (s.t > 25000 ? { t: s.t, ear: null } : s));
+  const r = analizarFatiga(m, 0);
+  comprobar("declara no medible si se pierde el rostro demasiado tiempo",
+    r.medible === false, JSON.stringify(r).slice(0, 90));
+}
+
+// ---------------------------------------------------------------- pupilas.js
+grupo("pupilas.js — clasificación de anisocoria");
+
+function muestrasPupila({ luzOD, luzOI, penOD, penOI, n = 30 }) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ t: i * 33, etiqueta: "luz", OD: luzOD, OI: luzOI });
+  for (let i = 0; i < n; i++) out.push({ t: 2000 + i * 33, etiqueta: "penumbra", OD: penOD, OI: penOI });
+  return out;
+}
+
+comprobar("sin diferencia → sin-anisocoria",
+  analizarPupilas(muestrasPupila({ luzOD: .40, luzOI: .40, penOD: .60, penOI: .60 }), null)
+    .clasificacion === "sin-anisocoria");
+
+comprobar("misma diferencia en ambas condiciones → constante (fisiológica)",
+  analizarPupilas(muestrasPupila({ luzOD: .40, luzOI: .55, penOD: .60, penOI: .75 }), null)
+    .clasificacion === "constante");
+
+comprobar("diferencia que crece en penumbra → vía simpática",
+  analizarPupilas(muestrasPupila({ luzOD: .40, luzOI: .40, penOD: .60, penOI: .40 }), null)
+    .clasificacion === "mayor-en-penumbra");
+
+comprobar("diferencia que crece con luz → vía parasimpática",
+  analizarPupilas(muestrasPupila({ luzOD: .40, luzOI: .62, penOD: .60, penOI: .60 }), null)
+    .clasificacion === "mayor-con-luz");
+
+comprobar("una diferencia menor que el ruido no se declara",
+  analizarPupilas(muestrasPupila({ luzOD: .40, luzOI: .42, penOD: .60, penOI: .62 }), null)
+    .clasificacion === "sin-anisocoria");
+
+grupo("pupilas.js — compuerta del reflejo fotomotor");
+{
+  const base = [], flash = [];
+  for (let i = 0; i < 30; i++) base.push({ t: i * 33, etiqueta: "plr-base", OD: .60, OI: .60 });
+  for (let i = 0; i < 45; i++) {
+    const v = i < 6 ? .60 : .40; // constricción tras ~200 ms
+    flash.push({ t: 1000 + i * 33, etiqueta: "plr-flash", OD: v, OI: v });
+  }
+  const r = analizarPupilas([...base, ...flash], 1000);
+  comprobar("PLR medible con detección estable", r.plr.medible === true, r.plr.motivo);
+  comprobar("constricción ≈ 33 %", cerca(r.plr.OD.constriccionPct, 33.33, 0.5), r.plr.OD?.constriccionPct);
+  comprobar("latencia ≈ 198 ms", cerca(r.plr.OD.latenciaMs, 198, 40), r.plr.OD?.latenciaMs);
+}
+{
+  const base = [], flash = [];
+  for (let i = 0; i < 30; i++) base.push({ t: i * 33, etiqueta: "plr-base", OD: .60, OI: .60 });
+  for (let i = 0; i < 45; i++) {
+    const perdido = i % 2 === 0; // la mitad de los frames sin pupila: iris oscuro
+    flash.push({ t: 1000 + i * 33, etiqueta: "plr-flash", OD: perdido ? null : .40, OI: perdido ? null : .40 });
+  }
+  const r = analizarPupilas([...base, ...flash], 1000);
+  comprobar("PLR NO se reporta con detección intermitente", r.plr.medible === false);
+  comprobar("y explica que es el problema del iris oscuro",
+    /far-red|oscuro/i.test(r.plr.motivo || ""), r.plr.motivo);
+}
+
+// ---------------------------------------------------------------- calibracion.js
+grupo("calibracion.js — óptica de la agudeza");
+comprobar("trazo de logMAR 0 a 1 m con 4 px/mm ≈ 1.16 px",
+  cerca(trazoPx(0, 1000, 4), 1.1636, 0.001), trazoPx(0, 1000, 4));
+comprobar("cada punto de logMAR multiplica el trazo por 10",
+  cerca(trazoPx(1, 1000, 4) / trazoPx(0, 1000, 4), 10, 1e-9));
+comprobar("el piso de la pantalla sale de exigir 3 px por trazo",
+  cerca(pisoLogMAR(1000, 4, 3, 1), Math.log10(3 / 1.16364), 0.002), pisoLogMAR(1000, 4, 3, 1));
+comprobar("una pantalla el doble de densa baja el piso una década/2",
+  pisoLogMAR(1000, 8, 3, 1) < pisoLogMAR(1000, 4, 3, 1));
+comprobar("logMAR 0.3 es 20/40", SNELLEN(0.3) === "20/40", SNELLEN(0.3));
+comprobar("logMAR 0 es 20/20", SNELLEN(0) === "20/20", SNELLEN(0));
+
+grupo("calibracion.js — distancia sin depender del tamaño real del iris");
+{
+  const ref = { distanciaMm: 1000, irisPx: 20 };
+  comprobar("iris a la mitad de píxeles = doble de distancia", distanciaMm(10, ref) === 2000);
+  comprobar("iris al doble de píxeles = mitad de distancia", distanciaMm(40, ref) === 500);
+  comprobar("en la referencia devuelve la distancia de referencia", distanciaMm(20, ref) === 1000);
+}
+
+// ---------------------------------------------------------------- resumen
+const res = document.getElementById("resumen");
+res.className = fallidas ? "fail" : "ok";
+res.textContent = `${pasadas} pasadas · ${fallidas} fallidas`;
+window.__pruebas = { pasadas, fallidas, fallos };
+  </script>
+</body>
+</html>

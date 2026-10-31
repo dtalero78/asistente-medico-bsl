@@ -36,12 +36,39 @@
                     <span class="vc-previa-texto">El médico se conecta cuando entres</span>
                 </div>
                 <h1>Consulta de validación</h1>
-                <p>Vas a hablar con el médico virtual de BSL. Activa tu cámara y tu micrófono.</p>
+                <p>Primero una prueba de ojos con la cámara, guiada por voz (unos 2 minutos y medio) y luego hablas con el médico virtual de BSL. Activa tu cámara y tu micrófono.</p>
                 <label class="vc-consentimiento">
                     <input type="checkbox" id="consentimiento">
-                    <span>Acepto que la consulta se grabe en audio y que se tomen fotos de mi cámara para verificar mi identidad, según la política de tratamiento de datos de BSL.</span>
+                    <span>Acepto que la consulta se grabe en audio, que se tomen fotos de mi cámara para verificar mi identidad y que las medidas y fotos de la prueba de ojos se guarden para el médico, según la política de tratamiento de datos de BSL.</span>
                 </label>
                 <button id="callButton" aria-label="Iniciar consulta con el asistente médico">Iniciar Consulta</button>
+            </div>
+        </div>
+
+        <!-- Prueba de ojos (static/js/ojos.js): obligatoria, antes de la consulta. Los resultados no
+             se le muestran al paciente: van a la ficha del medico junto con la entrevista -->
+        <section class="vc-ojos" id="ojos" aria-label="Prueba de ojos">
+            <div class="vc-ojos-escena">
+                <video id="ojosVideo" playsinline muted></video>
+                <canvas id="ojosOverlay"></canvas>
+            </div>
+            <div class="vc-ojos-panel">
+                <p class="vc-ojos-paso" id="ojosPaso">Prueba de ojos</p>
+                <h2 id="ojosTitulo">Preparando la prueba</h2>
+                <p class="vc-ojos-indicacion" id="ojosIndicacion"></p>
+                <div class="vc-ojos-estado" id="ojosEstado" role="status" aria-live="polite"></div>
+                <button id="ojosFoto" class="vc-boton" hidden>Tomar la foto</button>
+                <button id="ojosReintentar" class="vc-boton" hidden>Ya activé la cámara</button>
+            </div>
+        </section>
+
+        <!-- Solo si falla la conexion con el medico: al terminar la prueba de ojos se entra directo,
+             sin otro toque (un solo "Iniciar Consulta" para todo) -->
+        <div class="vc-listo">
+            <div class="vc-tarjeta">
+                <h1>No pudimos conectar con el médico</h1>
+                <p>Revisa tu señal y vuelve a intentarlo. La prueba de ojos ya quedó hecha.</p>
+                <button id="conectarBtn" class="vc-boton">Intentar de nuevo</button>
             </div>
         </div>
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Prueba de integración · Escáner Ocular</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <!-- Redirige el módulo del CDN al stub. Los import maps aceptan URL absolutas como
+       clave, así que app.js corre sin modificar ni una línea. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20": "./stub-mediapipe.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <script type="module">
+    import { camaraFalsa } from "./stub-mediapipe.js";
+
+    // La cámara falsa debe estar puesta antes de que app.js llame a getUserMedia.
+    const stream = camaraFalsa();
+    navigator.mediaDevices.getUserMedia = async () => stream;
+
+    // El cuerpo se toma del index.html real en vez de duplicarlo: así el arnés no se
+    // desincroniza cuando la página cambia. Los <script> insertados por innerHTML no
+    // se ejecutan, por eso app.js se importa a mano justo después.
+    const html = await (await fetch("../index.html", { cache: "no-store" })).text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    document.body.innerHTML = doc.body.innerHTML;
+
+    await import("../app.js");
+    window.__listo = true;
+  </script>
+</body>
+</html>

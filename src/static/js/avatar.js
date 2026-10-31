@@ -1,7 +1,11 @@
 // Avatar en video: sala LiveKit creada por LiveAvatar (services/avatar.py). Se ve como una
 // videollamada: la camara del paciente en grande (solo local, no se publica) y el doctor en un circulo.
+// Antes de la consulta va la prueba de ojos (ojos.js), obligatoria; sus resultados viajan en
+// memoria y se guardan junto con la entrevista en /avatar/end.
 import { showNotification } from './ui.js';
 import { checkMicrophonePermission, showPermissionError } from './permissions.js';
+import { precargarModelo, examenOjos } from './ojos.js';
+import { crearGuia } from './guia-voz.js';
 
 const { Room, RoomEvent, Track } = window.LivekitClient;
 
@@ -17,6 +21,19 @@ const resumenBox = document.getElementById('resumen');
 const reintentarBtn = document.getElementById('reintentarBtn');
 const audioBtn = document.getElementById('audioBtn');
 const consentimiento = document.getElementById('consentimiento');
+const conectarBtn = document.getElementById('conectarBtn');
+const ojosUI = {
+    video: document.getElementById('ojosVideo'),
+    overlay: document.getElementById('ojosOverlay'),
+    paso: document.getElementById('ojosPaso'),
+    titulo: document.getElementById('ojosTitulo'),
+    indicacion: document.getElementById('ojosIndicacion'),
+    estado: document.getElementById('ojosEstado'),
+    botonFoto: document.getElementById('ojosFoto'),
+};
+const ojosReintentar = document.getElementById('ojosReintentar');
+const guia = crearGuia();
+ojosUI.guia = guia;
 
 // Debe coincidir con FRASE_CIERRE en services/avatar.py
 const FRASE_CIERRE = 'estoy generando tu resumen';
@@ -33,6 +50,7 @@ let transcript = [];
 let cerrando = false;
 let finalizando = false;
 let conversationId = null;
+let ojos = null;   // resultado de la prueba de ojos; sobrevive a "Intentar de nuevo"
 
 // Evidencia de la entrevista (opcion "audio + fotos"): el audio completo lo graba ElevenLabs en
 // sus servidores, y aqui solo se toman unas fotos pequenas de la camara del paciente para
@@ -51,15 +69,99 @@ function tomarFoto(momento) {
     fotos.push({ momento, imagen: canvas.toDataURL('image/jpeg', 0.7) });
 }
 
-async function startCall() {
+// Un solo toque para todo: consentimiento + "Iniciar Consulta" arranca la prueba de ojos y al
+// terminar entra el medico. Los permisos y el link se revisan antes de la prueba: no tiene sentido
+// hacer dos minutos de prueba para despues decir "Esta consulta ya fue realizada".
+async function iniciar() {
+    guia.desbloquear();   // antes de cualquier await: iPhone solo deja sonar dentro del toque
     callButton.disabled = true;
+
+    const permission = await pedirPermisos();
+    if (!permission.granted) {
+        showPermissionError(permission.error);
+        callButton.disabled = false;
+        return;
+    }
+
+    if (_id && await linkUsado()) {
+        vc.dataset.estado = 'fin';
+        callStatus.textContent = 'Esta consulta ya fue realizada';
+        return;
+    }
+
+    vc.dataset.estado = 'ojos';
+    mantenerPantallaEncendida();
+    await pruebaDeOjos();
+}
+
+// Camara y microfono en un solo aviso del navegador (antes eran dos, uno para cada uno)
+async function pedirPermisos() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: 'user' } });
+        stream.getTracks().forEach(t => t.stop());
+        return { granted: true };
+    } catch (error) {
+        // Sin camara (o camara ocupada) la consulta sigue: la prueba de ojos deja el motivo para el medico
+        if (error.name !== 'NotAllowedError' && error.name !== 'PermissionDeniedError') return checkMicrophonePermission();
+        return { granted: false, error: 'Necesitas permitir la cámara y el micrófono para la consulta. Toca el candado junto a la dirección de la página, permítelos y vuelve a intentarlo.' };
+    }
+}
+
+async function linkUsado() {
+    try {
+        const res = await fetch(`/api/paciente?_id=${encodeURIComponent(_id)}`);
+        return res.status === 403;
+    } catch {
+        return false;   // si no se puede saber, lo dice /avatar/session al conectar
+    }
+}
+
+async function pruebaDeOjos() {
+    ojosReintentar.hidden = true;
+    try {
+        ojos = await examenOjos(ojosUI);
+    } catch (error) {
+        if (error.name !== 'NotAllowedError' && error.name !== 'PermissionDeniedError') {
+            // Falla nuestra, no del paciente: sigue a la consulta y el medico ve el motivo
+            console.error('[avatar] Error en la prueba de ojos:', error);
+            ojos = { realizado: false, motivo: `Error inesperado (${error.message}).` };
+            await pasarAlMedico();
+            return;
+        }
+        // Camara negada. La prueba es obligatoria, asi que no se sigue sin ella
+        console.warn('[avatar] Sin camara para la prueba de ojos:', error.name);
+        ojosUI.titulo.textContent = 'Necesitamos tu cámara';
+        ojosUI.indicacion.textContent = 'La prueba de ojos usa la cámara. Toca el candado junto a la dirección de la página, permite la cámara y vuelve a intentarlo.';
+        ojosUI.estado.textContent = '';
+        ojosReintentar.hidden = false;
+        guia.decir('camara');
+        return;
+    }
+    if (!ojos.realizado) console.warn('[avatar] Prueba de ojos no realizada:', ojos.motivo);
+    await pasarAlMedico();
+}
+
+// Sin pantalla intermedia: la voz avisa y entra el medico. Si el navegador bloquea el audio del
+// doctor por no haber toque reciente, sale audioBtn ("Toca para escuchar al doctor").
+async function pasarAlMedico() {
+    ojosUI.titulo.textContent = 'Conectando con el médico…';
+    ojosUI.indicacion.textContent = '';
+    ojosUI.estado.textContent = '';
+    await guia.decir('fin');
+    await startCall();
+}
+
+async function startCall() {
+    guia.apagar();
+    conectarBtn.disabled = true;
     callStatus.textContent = 'Verificando micrófono...';
 
     const permission = await checkMicrophonePermission();
     if (!permission.granted) {
         showPermissionError(permission.error);
         callStatus.textContent = 'Micrófono no disponible';
-        callButton.disabled = false;
+        vc.dataset.estado = 'listo';
+        conectarBtn.disabled = false;
         return;
     }
 
@@ -109,9 +211,9 @@ async function startCall() {
     } catch (error) {
         console.error('[avatar] Error al iniciar:', error);
         apagarCamara();
-        vc.dataset.estado = 'inicio';
+        vc.dataset.estado = 'listo';
         showNotification('No se pudo conectar con el doctor. Intenta de nuevo.', 'error');
-        callButton.disabled = false;
+        conectarBtn.disabled = false;
     }
 }
 
@@ -132,6 +234,7 @@ async function encenderCamara() {
 
 // En el celular la pantalla se apagaria a mitad de la consulta (el paciente solo habla)
 async function mantenerPantallaEncendida() {
+    if (wakeLock && !wakeLock.released) return;
     try {
         wakeLock = await navigator.wakeLock?.request('screen');
     } catch (error) {
@@ -230,7 +333,8 @@ async function finishCall(motivo) {
                 conversation_id: conversationId,
                 ref: sesion.ref,
                 inicio: sesion.inicio,
-                fotos
+                fotos,
+                ojos
             })
         });
         const data = await res.json();
@@ -258,12 +362,39 @@ async function finishCall(motivo) {
     }
 }
 
-callButton.addEventListener('click', startCall);
+// "Intentar de nuevo" tras una llamada cortada: la prueba de ojos ya esta hecha, solo se repite la
+// entrevista. Recargar la pagina obligaba a repetir la prueba.
+function reintentarLlamada() {
+    room = null;
+    sesion = null;
+    transcript = [];
+    cerrando = false;
+    finalizando = false;
+    conversationId = null;
+    fotos = [];
+    fotoTimers = [];
+    document.querySelectorAll('body > audio').forEach(a => a.remove());
+    doctorBubble.classList.remove('hablando');
+    resumenCard.hidden = true;
+    reintentarBtn.hidden = true;
+    document.getElementById('resumenTitulo').textContent = 'Consulta finalizada';
+    resumenBox.textContent = '';
+    callStatus.textContent = 'Listo para iniciar';
+    startCall();
+}
+
+// MediaPipe y el modelo pesan ~10 MB: se bajan mientras el paciente lee la pantalla de inicio
+precargarModelo().catch(error => console.warn('[avatar] No se pudo precargar la prueba de ojos:', error));
+guia.precargar();
+
+callButton.addEventListener('click', iniciar);
+conectarBtn.addEventListener('click', startCall);
+ojosReintentar.addEventListener('click', pruebaDeOjos);
 // Sin aceptar la grabacion (audio + fotos) no se puede iniciar la consulta
 callButton.disabled = !consentimiento.checked;
 consentimiento.addEventListener('change', () => { callButton.disabled = !consentimiento.checked; });
 endCallBtn.addEventListener('click', () => finishCall('boton'));
-reintentarBtn.addEventListener('click', () => location.reload());
+reintentarBtn.addEventListener('click', () => (ojos ? reintentarLlamada() : location.reload()));
 audioBtn.addEventListener('click', () => room?.startAudio());
 
 // Igual que la llamada de voz: si el paciente se va a otra app mas de 30 s, se cierra.
@@ -274,6 +405,6 @@ document.addEventListener('visibilitychange', () => {
         if (room && !finalizando) ocultaTimer = setTimeout(() => finishCall('pestaña oculta'), 30000);
     } else {
         clearTimeout(ocultaTimer);
-        if (room && !finalizando) mantenerPantallaEncendida();
+        if ((room && !finalizando) || vc.dataset.estado === 'ojos') mantenerPantallaEncendida();
     }
 });

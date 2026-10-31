@@ -1,5 +1,5 @@
 /* Pagina del avatar (/avatar): videollamada al estilo Zoom. El paciente se ve a si mismo a
-   pantalla completa y el doctor va en un circulo en la esquina. data-estado en .vc: inicio | llamada | fin
+   pantalla completa y el doctor va en un circulo en la esquina. data-estado en .vc: inicio | ojos | listo | llamada | fin
    Sin foto de fondo: el escenario es gris oscuro neutro, como cualquier sala de videollamada. */
 body.avatar-page {
     overscroll-behavior: none;
@@ -23,7 +23,9 @@ body.avatar-page {
     position: absolute;
     inset: 0;
 }
-.vc[data-estado="inicio"] .vc-escenario { display: none; }
+.vc[data-estado="inicio"] .vc-escenario,
+.vc[data-estado="ojos"] .vc-escenario,
+.vc[data-estado="listo"] .vc-escenario { display: none; }
 
 /* Ficha del paciente: su propia camara ocupa toda la sala */
 .vc-ficha-self {
@@ -119,10 +121,13 @@ body.avatar-page {
     pointer-events: none;
     background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.6));
 }
-.vc[data-estado="inicio"] .vc-shade { display: none; }
+.vc[data-estado="inicio"] .vc-shade,
+.vc[data-estado="ojos"] .vc-shade,
+.vc[data-estado="listo"] .vc-shade { display: none; }
 
 /* Pantalla de entrada: una tarjeta sobre el escenario vacio */
-.vc-inicio {
+.vc-inicio,
+.vc-listo {
     position: absolute;
     inset: 0;
     display: flex;
@@ -131,6 +136,7 @@ body.avatar-page {
     padding: 16px;
 }
 .vc:not([data-estado="inicio"]) .vc-inicio { display: none; }
+.vc:not([data-estado="listo"]) .vc-listo { display: none; }
 
 .vc-tarjeta {
     width: min(100%, 420px);
@@ -175,8 +181,8 @@ body.avatar-page {
     color: rgba(255, 255, 255, 0.6);
 }
 
-.vc-inicio h1 { font-size: 1.4rem; font-weight: 500; }
-.vc-inicio p {
+.vc-inicio h1, .vc-listo h1 { font-size: 1.4rem; font-weight: 500; }
+.vc-inicio p, .vc-listo p {
     font-size: 0.95rem;
     color: rgba(255, 255, 255, 0.72);
     line-height: 1.45;
@@ -231,7 +237,9 @@ body.avatar-page {
     gap: 12px;
     padding: 0 16px;
 }
-.vc[data-estado="inicio"] .vc-bar .call-status { display: none; }
+.vc[data-estado="inicio"] .vc-bar .call-status,
+.vc[data-estado="ojos"] .vc-bar .call-status,
+.vc[data-estado="listo"] .vc-bar .call-status { display: none; }
 
 .vc-bar .call-status {
     margin: 0;
@@ -306,6 +314,88 @@ body.avatar-page {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 .vc-audio[hidden] { display: none; }
+
+/* Prueba de ojos: la camara arriba (en espejo, con los circulos del iris encima) y las
+   instrucciones abajo. La camara frontal del celular esta arriba: asi el paciente mira cerca de ella */
+.vc-ojos {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #131417;
+}
+.vc:not([data-estado="ojos"]) .vc-ojos { display: none; }
+.vc-ojos-escena {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: #1c1e24;
+}
+.vc-ojos-escena video,
+.vc-ojos-escena canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+.vc-ojos-panel {
+    flex: none;
+    padding: 16px 16px max(20px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+.vc-ojos-paso { font-size: 0.8rem; color: rgba(255, 255, 255, 0.6); letter-spacing: 0.03em; }
+.vc-ojos-panel h2 { font-size: 1.2rem; font-weight: 500; }
+.vc-ojos-indicacion { font-size: 0.92rem; line-height: 1.45; color: rgba(255, 255, 255, 0.78); max-width: 440px; }
+.vc-ojos-estado {
+    min-height: 1.4em;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 8px 16px;
+    border-radius: 18px;
+    font-size: 0.92rem;
+}
+.vc-ojos-estado:empty { display: none; }
+
+/* Boton azul de videollamada, para los pasos nuevos (prueba de ojos y "Hablar con el medico") */
+.vc-boton {
+    width: min(100%, 300px);
+    min-height: 48px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: #0b5cff;
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.vc-boton[hidden] { display: none; }
+.vc-boton:hover { background: #2a71ff; }
+.vc-boton:disabled { background: #3a3f4b; color: rgba(255, 255, 255, 0.6); cursor: not-allowed; }
+.vc-boton:focus-visible { outline: 3px solid #8fb6ff; outline-offset: 3px; }
+
+/* Estimulo del estudio de pupilas (escaner-ocular/src/estimulo.js): la pantalla entera es la
+   fuente de luz, por encima de todo lo demas. Copiado de escaner-ocular/styles.css */
+.estimulo {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}
+.estimulo[hidden] { display: none; }
+.estimulo-fijacion { width: 10px; height: 10px; border-radius: 50%; }
+.estimulo-texto { margin: 0; font-size: 14px; letter-spacing: .3px; }
 
 @media (max-width: 600px) {
     .vc-ficha-doctor {

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Escáner Ocular · Tamizaje visual</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◉</span>
+      <div>
+        <h1>Escáner Ocular</h1>
+        <p class="subtitle">Tamizaje visual asistido por cámara · uso ocupacional</p>
+      </div>
+    </div>
+    <div class="disclaimer-pill" title="Lea el aviso completo al final">
+      Tamizaje — no es diagnóstico
+    </div>
+  </header>
+
+  <main>
+    <!-- PANEL DE CAPTURA -->
+    <section class="panel capture" id="capturePanel">
+      <div class="study-bar">
+        <h2 id="studyName">Tamizaje estático</h2>
+        <div class="study-picker">
+          <button class="btn tiny ghost" data-estudio="completo">Examen completo</button>
+          <button class="btn tiny ghost" data-estudio="tamizaje">Tamizaje</button>
+          <button class="btn tiny ghost" data-estudio="fatiga">Fatiga</button>
+          <button class="btn tiny ghost" data-estudio="pupilas">Pupilas</button>
+          <button class="btn tiny ghost" data-estudio="agudeza">Agudeza</button>
+        </div>
+      </div>
+
+      <div class="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="stage-status" id="stageStatus">Inicializando cámara y modelo…</div>
+        <div class="quality-badges" id="qualityBadges"></div>
+      </div>
+
+      <div class="controls">
+        <p class="hint" id="hint"></p>
+        <div class="buttons">
+          <label class="switch" id="autoWrap">
+            <input type="checkbox" id="autoToggle" checked />
+            <span>Captura automática</span>
+          </label>
+          <button id="captureBtn" class="btn ghost" disabled>📸 Capturar ahora</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL DE RESULTADOS -->
+    <section class="panel report" id="reportPanel" hidden>
+      <div class="report-header">
+        <h2>Reporte de tamizaje ocular</h2>
+        <div class="report-meta" id="reportMeta"></div>
+      </div>
+
+      <div id="reportSections"></div>
+
+      <div class="report-actions">
+        <button id="printBtn" class="btn primary">🖨 Imprimir / Guardar PDF</button>
+        <button class="btn ghost" data-estudio="tamizaje">＋ Nuevo tamizaje</button>
+        <button class="btn ghost" data-estudio="completo">↻ Examen completo</button>
+      </div>
+    </section>
+
+    <!-- AVISO LEGAL -->
+    <footer class="legal">
+      <strong>Aviso importante.</strong> Esta herramienta es un <em>tamizaje</em>
+      orientativo realizado con una cámara web estándar. <u>No es un dispositivo
+      médico, no realiza diagnósticos y no reemplaza la valoración de un
+      profesional de la salud.</u> Las mediciones (diámetro de iris/pupila,
+      enrojecimiento, apertura, parpadeo, agudeza) son <em>aproximadas</em> y
+      sensibles a la iluminación, la cámara, la distancia y el movimiento. Ningún
+      punto de corte usado aquí está validado en esta población. Cualquier hallazgo
+      debe ser confirmado por un optómetra u oftalmólogo. El procesamiento ocurre
+      localmente en su navegador; no se envían imágenes a ningún servidor.
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

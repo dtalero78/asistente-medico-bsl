@@ -97,3 +97,45 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
 - Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).
+
+### Prueba de ojos (obligatoria, antes de la entrevista)
+
+Al tocar «Iniciar Consulta» el paciente pasa primero por tres estudios del Escáner Ocular
+(`src/static/escaner-ocular/`, con su propio CLAUDE.md): tamizaje (foto de los ojos), fatiga
+(60 s de parpadeo) y pupilas (la pantalla en blanco, luego en rojo y un destello). Son unos 2 min y medio. La cáscara
+para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.
+
+- **Un solo toque**: consentimiento + «Iniciar Consulta» pide cámara y micrófono en un solo aviso,
+  hace la prueba y al terminar entra el médico directo. La tarjeta `vc-listo` solo sale si falla la
+  conexión con el médico.
+- **Va guiada por voz** (`src/static/js/guia-voz.js`): mirando la cámara no se puede leer. Cada
+  instrucción suena antes de que arranque su estudio, hay correcciones habladas si la pose falla
+  (acércate, aléjate, no veo tu cara) y una música suave marca el tiempo quieto («mientras suene la
+  música…»). Durante el minuto y en pupilas la voz explica qué se mide (`avisos` en `ojos.js`).
+- En la foto el paciente se acomoda sin poder leer: la voz corrige más seguido (1,5 s / 4 s), lo
+  anima si se viene acercando («Eso, un poco más cerca»), avisa cuando ya está bien («Así está
+  perfecto. Quédate quieto») y la foto espera a que termine esa frase.
+- **En pupilas la voz calla mientras se mide**: escuchar con atención dilata la pupila. La
+  narración se cuadra con `PLAN` (exportado de `pupilas.js`) y debe terminar antes de cada ventana
+  de medición; si se alarga un clip o cambia `PLAN`, revisar el comentario de `PASOS` en `ojos.js`. Los audios están grabados en
+  `src/static/assets/voz-ojos/` con la voz del médico (Alirio): se generan con
+  `scripts/voz-ojos/generar.py` (textos y prompt de la música están ahí). Cambiar un texto =
+  editar el script y correr `generar.py <id>`.
+- En iPhone un `<audio>` solo suena si su primer `play()` ocurre dentro del toque: `guia.desbloquear()`
+  va síncrono al inicio del clic de «Iniciar Consulta», antes de cualquier `await`. Por lo mismo, el
+  volumen de la música va horneado en el archivo (iPhone ignora `audio.volume`).
+
+- Va **antes** porque es obligatoria: si fuera después y el paciente cerrara a mitad de la prueba,
+  se perdería la entrevista. Antes de empezarla se revisan el micrófono y que el link no esté usado
+  (`/api/paciente` → 403).
+- El resultado queda en memoria y viaja en `/avatar/end` (`ojos`). `grabacion.limpiar_ojos` lo
+  reduce a texto acotado y lo guarda en `meta.json` (`ojos`), con las fotos `foto-N-ojo-od/oi.jpg`.
+  La ficha de BSL-PLATAFORMA2 lo pinta en «Ver entrevista» (`pruebaDeOjos` en `inicio-ficha.js`).
+- **No se le muestra al paciente** ni entra al resumen, al WhatsApp ni al certificado: los puntos
+  de corte no están validados y las cifras de pupila son experimentales.
+- Cámara negada → no sigue (pide permitirla). Cualquier otra falla (sin cámara, el modelo no
+  carga, error) → `{realizado: false, motivo}` y sigue a la consulta: el médico ve por qué.
+- «Intentar de nuevo» tras una llamada cortada repite solo la entrevista, no la prueba.
+- MediaPipe (~10 MB, CDN de jsdelivr + Google Storage) se precarga en la pantalla de inicio y se
+  libera antes de conectar LiveKit: los dos a la vez ahogan un celular de gama baja.
+

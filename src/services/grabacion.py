@@ -2,7 +2,7 @@
 
 El audio lo graba ElevenLabs en sus servidores (el celular del paciente no hace nada extra);
 aqui se copia a DigitalOcean Spaces junto con las fotos que tomo el navegador y un meta.json
-con el resumen y la transcripcion. Mismo bucket que BSL-PLATAFORMA2 (fotos de formularios),
+con el resumen, la transcripcion y la prueba de ojos (static/js/ojos.js). Mismo bucket que BSL-PLATAFORMA2 (fotos de formularios),
 pero los objetos son PRIVADOS: son datos de salud y se ven solo con un link temporal
 (link_temporal). Ruta: entrevistas-avatar/<orden o demo>/<fecha>_<conversation_id>/
 """
@@ -71,6 +71,50 @@ def _subir_fotos(carpeta, fotos):
     return keys
 
 
+def limpiar_ojos(ojos):
+    """La prueba de ojos tal como llega del navegador, reducida a lo que pinta la ficha del medico.
+
+    Llega del celular del paciente, asi que se recorta todo: solo texto, con largos y cantidades
+    acotadas. Las fotos de los ojos (momento "ojo-od" / "ojo-oi") se suben con las demas.
+
+    Returns: (dict para meta.json o None, lista de fotos de los ojos)
+    """
+    if not isinstance(ojos, dict):
+        return None, []
+
+    def texto(v, largo=400):
+        return None if v is None else str(v)[:largo]
+
+    secciones = []
+    for sec in (ojos.get("secciones") or [])[:5]:
+        if not isinstance(sec, dict):
+            continue
+        filas = []
+        for fila in (sec.get("rows") or [])[:20]:
+            if not isinstance(fila, dict):
+                continue
+            limpia = {k: texto(fila[k]) for k in ("label", "od", "oi", "value", "reading") if fila.get(k) is not None}
+            limpia["exp"] = bool(fila.get("exp"))
+            filas.append(limpia)
+        banderas = [["ok" if b[0] == "ok" else "warn", texto(b[1])]
+                    for b in (sec.get("flags") or [])[:10] if isinstance(b, (list, tuple)) and len(b) == 2]
+        secciones.append({"title": texto(sec.get("title"), 80), "note": texto(sec.get("note")),
+                          "rows": filas, "flags": banderas})
+
+    duracion = ojos.get("duracion_s")
+    meta = {
+        "realizado": bool(ojos.get("realizado")),
+        "motivo": texto(ojos.get("motivo")),
+        "fecha": texto(ojos.get("fecha"), 40),
+        "camara": texto(ojos.get("camara"), 20),
+        "duracion_s": int(duracion) if isinstance(duracion, (int, float)) else None,
+        "secciones": secciones,
+    }
+    fotos = [f for f in (ojos.get("fotos") or [])
+             if isinstance(f, dict) and str(f.get("momento", "")).startswith("ojo-")][:2]
+    return meta, fotos
+
+
 def _bajar_audio_elevenlabs(conversation_id, intentos=12, espera=10):
     """ElevenLabs tarda unos segundos en procesar la conversacion antes de dar el audio."""
     headers = {"xi-api-key": os.getenv("ELEVENLABS_API_KEY")}
@@ -129,12 +173,13 @@ def _guardar_audio(carpeta, conversation_id, meta, ref=None, inicio=None):
         logger.error("Error guardando audio de %s: %s", conversation_id, e)
 
 
-def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=None, inicio=None):
+def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=None, inicio=None, ojos=None):
     """Sube las fotos ya y el audio en segundo plano (ElevenLabs lo entrega con demora).
 
     Returns: la carpeta en Spaces donde queda todo.
     """
     carpeta = _carpeta(orden_id, ref or conversation_id)
+    meta_ojos, fotos_ojos = limpiar_ojos(ojos)
     meta = {
         "orden_id": orden_id,
         "ref": ref,
@@ -144,9 +189,10 @@ def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=No
         "transcripcion": turnos,
         "fotos": [],
         "audio": None,
+        "ojos": meta_ojos,
     }
     try:
-        meta["fotos"] = _subir_fotos(carpeta, fotos)
+        meta["fotos"] = _subir_fotos(carpeta, list(fotos or [])[:5] + fotos_ojos)
     except Exception as e:
         logger.error("Error subiendo fotos de %s: %s", carpeta, e)
 

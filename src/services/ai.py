@@ -50,14 +50,8 @@ Ejemplos de emojis apropiados: 💪 🏃 🥗 😴 💧 🧘 👁️ ❤️ 🩺
         return None
 
 
-def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares):
-    """Genera y envia sugerencias personalizadas por WhatsApp.
-
-    Ya no manda el link del certificado (plantilla certificado_listo): salia despues de cualquier
-    entrevista, y fuera de NUBIA la entrevista es la preconsulta, asi que el paciente leia "Tu
-    certificado ya esta listo" mientras seguia esperando al medico (Mery y Lizeth, 31-oct). En
-    BSL-PLATAFORMA2 el aviso automatico de certificado listo esta prohibido desde el 14-oct; el
-    certificado llega por los caminos manuales de alla."""
+def enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id=None):
+    """Genera y envia sugerencias personalizadas por WhatsApp."""
     sugerencias = generar_sugerencias_salud(nombre, encuesta_salud, antecedentes_familiares)
 
     if not sugerencias:
@@ -94,3 +88,19 @@ Aqui tienes algunas recomendaciones personalizadas para ti:
 Cuidamos de ti y tu bienestar laboral 💙"""
         send_text_message(to, mensaje)
         logger.info("Sugerencias enviadas por WhatsApp (free-text fallback)")
+
+    if _id:
+        link_certificado = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/solicitar-certificado.html?id={_id}"
+        template_cert = os.getenv('TWILIO_TEMPLATE_CERTIFICADO_LISTO')
+        if template_cert:
+            resultado_cert = send_template_message(to, template_cert, {"1": nombre, "2": link_certificado})
+            if resultado_cert.get('success'):
+                logger.info("Link de certificado enviado por WhatsApp (template) OK")
+            else:
+                logger.error("Fallo template certificado: %s", resultado_cert.get('error'))
+        else:
+            send_text_message(to, f"Puedes descargar tu certificado en: {link_certificado}")
+            logger.info("Link de certificado enviado por WhatsApp (free-text fallback)")
+    else:
+        send_text_message(to, "En un momento llegara tu certificado")
+        logger.info("Mensaje generico de certificado enviado por WhatsApp")

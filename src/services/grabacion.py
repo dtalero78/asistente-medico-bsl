@@ -176,7 +176,8 @@ def _guardar_audio(carpeta, conversation_id, meta, ref=None, inicio=None):
 def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=None, inicio=None, ojos=None):
     """Sube las fotos ya y el audio en segundo plano (ElevenLabs lo entrega con demora).
 
-    Returns: la carpeta en Spaces donde queda todo.
+    Returns: (la carpeta en Spaces donde queda todo, la prueba de ojos limpia con las keys de sus
+    fotos en "fotos", o None). La prueba va tambien a HistoriaClinica.pruebaOjos (ver app.py).
     """
     carpeta = _carpeta(orden_id, ref or conversation_id)
     meta_ojos, fotos_ojos = limpiar_ojos(ojos)
@@ -195,6 +196,9 @@ def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=No
         meta["fotos"] = _subir_fotos(carpeta, list(fotos or [])[:5] + fotos_ojos)
     except Exception as e:
         logger.error("Error subiendo fotos de %s: %s", carpeta, e)
+    if meta_ojos is not None:
+        # La historia clinica en PDF las incrusta: las baja de Spaces con estas keys
+        meta_ojos["fotos"] = [k for k in meta["fotos"] if "-ojo-" in k.rsplit("/", 1)[-1]]
 
     if conversation_id or ref:
         threading.Thread(target=_guardar_audio, args=(carpeta, conversation_id, meta, ref, inicio),
@@ -202,4 +206,4 @@ def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=No
     else:
         _subir(f"{carpeta}/meta.json", json.dumps(meta, ensure_ascii=False, indent=2).encode(),
                "application/json")
-    return carpeta
+    return carpeta, meta_ojos

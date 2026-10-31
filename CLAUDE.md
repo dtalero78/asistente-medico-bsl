@@ -131,6 +131,11 @@ para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.
 - El resultado queda en memoria y viaja en `/avatar/end` (`ojos`). `grabacion.limpiar_ojos` lo
   reduce a texto acotado y lo guarda en `meta.json` (`ojos`), con las fotos `foto-N-ojo-od/oi.jpg`.
   La ficha de BSL-PLATAFORMA2 lo pinta en «Ver entrevista» (`pruebaDeOjos` en `inicio-ficha.js`).
+- **Va a la historia clínica**: `app.guardar_evidencia` lo escribe también en
+  `HistoriaClinica."pruebaOjos"` (jsonb, columna creada el 31-oct-2026; `fotos` = keys privadas en
+  Spaces), aunque la entrevista se corte; un reintento lo sobreescribe. Si Spaces falla, se guarda
+  igual sin fotos. El PDF de PLATAFORMA2 lo pone en IX. Exámenes paraclínicos con las fotos
+  incrustadas (`buildPruebaOjosHTML` en `historia-clinica-html.js`, `fotosDePruebaOjos`).
 - **No se le muestra al paciente** ni entra al resumen, al WhatsApp ni al certificado: los puntos
   de corte no están validados y las cifras de pupila son experimentales.
 - Cámara negada → no sigue (pide permitirla). Cualquier otra falla (sin cámara, el modelo no

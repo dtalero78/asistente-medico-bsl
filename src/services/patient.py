@@ -1,3 +1,4 @@
+import json
 import logging
 from db import db_pool
 
@@ -126,4 +127,23 @@ def guardar_resumen(_id, resumen):
                 return {"success": True, "rows_affected": rows_affected}
     except Exception as e:
         logger.error("Error al guardar resumen en PostgreSQL: %s", str(e))
+        return {"success": False, "error": str(e)}
+
+
+def guardar_prueba_ojos(_id, prueba):
+    """Guarda la prueba de ojos (ya limpia, grabacion.limpiar_ojos) en HistoriaClinica.pruebaOjos,
+    para que entre a la historia clinica (IX. Examenes paraclinicos en BSL-PLATAFORMA2). No gasta el
+    link: eso lo hace resumenLlamada. Un reintento la sobreescribe."""
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE "HistoriaClinica" SET "pruebaOjos" = %s::jsonb WHERE _id = %s',
+                    (json.dumps(prueba, ensure_ascii=False), _id)
+                )
+                conn.commit()
+                logger.info("Prueba de ojos guardada en PostgreSQL - filas afectadas: %d", cur.rowcount)
+                return {"success": True, "rows_affected": cur.rowcount}
+    except Exception as e:
+        logger.error("Error al guardar la prueba de ojos en PostgreSQL: %s", str(e))
         return {"success": False, "error": str(e)}

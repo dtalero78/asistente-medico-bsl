@@ -16,7 +16,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 logger.info("Flask iniciado correctamente")
 
-from services.patient import fetch_patient_data, guardar_resumen
+from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos
 from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
@@ -216,6 +216,22 @@ def avatar_session():
         return jsonify({'error': str(e)}), 500
 
 
+def guardar_evidencia(_id, data, resumen, turnos):
+    """Evidencia de la entrevista a Spaces y la prueba de ojos a HistoriaClinica.pruebaOjos.
+    Si Spaces falla, la prueba igual queda en la historia clinica, sin fotos."""
+    carpeta, prueba = None, None
+    try:
+        carpeta, prueba = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
+                                                       resumen, turnos, data.get('ref'), data.get('inicio'),
+                                                       data.get('ojos'))
+    except Exception as e:
+        logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
+        prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))
+    if _id and prueba is not None:
+        guardar_prueba_ojos(_id, prueba)
+    return carpeta
+
+
 @app.route('/avatar/end', methods=['POST'])
 def avatar_end():
     """Cierra la sesion, arma el resumen desde la transcripcion y lo despacha (salvo en demo)."""
@@ -244,12 +260,7 @@ def avatar_end():
         # para que el equipo vea el intento en la ficha.
         if paciente is not None and not avatar.entrevista_completa(turnos):
             logger.info("Entrevista incompleta %s (%d turnos)", _id or 'demo', len(turnos))
-            try:
-                grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
-                                             avatar.RESUMEN_INCOMPLETA, turnos, data.get('ref'), data.get('inicio'),
-                                             data.get('ojos'))
-            except Exception as e:
-                logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
+            guardar_evidencia(_id, data, avatar.RESUMEN_INCOMPLETA, turnos)
             return jsonify({'success': True, 'incompleta': True})
 
         resumen = avatar.generar_resumen(paciente, turnos)
@@ -257,13 +268,7 @@ def avatar_end():
 
         # Evidencia (audio de ElevenLabs + fotos del navegador) en Spaces. Si falla, el
         # resumen igual se despacha: no se le cobra al paciente un error de almacenamiento.
-        carpeta = None
-        try:
-            carpeta = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
-                                                   resumen, turnos, data.get('ref'), data.get('inicio'),
-                                                   data.get('ojos'))
-        except Exception as e:
-            logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
+        carpeta = guardar_evidencia(_id, data, resumen, turnos)
 
         if not _id:
             return jsonify({'success': True, 'demo': True, 'resumen': resumen, 'grabacion': carpeta})

@@ -5,9 +5,11 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from services import grabacion  # noqa: E402
 from services.grabacion import limpiar_ojos  # noqa: E402
 
 FOTO = 'data:image/jpeg;base64,/9j/4AAQ'
@@ -63,6 +65,28 @@ class TestLimpiarOjos(unittest.TestCase):
         self.assertEqual(meta['secciones'][0]['flags'], [['warn', 'msg']])
         # Solo fotos de ojos, y como mucho las dos que manda la app
         self.assertEqual([f['momento'] for f in fotos], ['ojo-od', 'ojo-od'])
+
+
+
+class TestGuardarEntrevista(unittest.TestCase):
+
+    def test_la_prueba_lleva_las_keys_de_las_fotos_de_los_ojos(self):
+        # La historia clinica en PDF baja las fotos de los ojos con estas keys
+        subidas = []
+        with mock.patch.object(grabacion, '_subir', side_effect=lambda key, *a: subidas.append(key) or key):
+            carpeta, prueba = grabacion.guardar_entrevista(
+                'orden_1', None,
+                [{'momento': 'inicio', 'imagen': FOTO}, {'momento': 'final', 'imagen': FOTO}],
+                'Resumen', [], ojos={'realizado': True, 'secciones': [],
+                                     'fotos': [{'momento': 'ojo-od', 'imagen': FOTO}, {'momento': 'ojo-oi', 'imagen': FOTO}]})
+        self.assertEqual(prueba['fotos'], [f'{carpeta}/foto-3-ojo-od.jpg', f'{carpeta}/foto-4-ojo-oi.jpg'])
+        self.assertIn(f'{carpeta}/foto-1-inicio.jpg', subidas)
+        self.assertIn(f'{carpeta}/meta.json', subidas)
+
+    def test_sin_prueba(self):
+        with mock.patch.object(grabacion, '_subir', side_effect=lambda key, *a: key):
+            _, prueba = grabacion.guardar_entrevista('orden_1', None, [], 'Resumen', [])
+        self.assertIsNone(prueba)
 
 
 if __name__ == '__main__':

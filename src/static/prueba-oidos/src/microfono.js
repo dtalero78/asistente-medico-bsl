@@ -6,8 +6,10 @@
 //
 // Durante los tonos el microfono va cerrado: en iPhone, tenerlo abierto cambia la sesion de audio
 // (puede bajar el volumen o cambiar la salida) y eso moveria los umbrales.
+import { modoAutomatico } from './tonos.js';
 
 export async function abrirMicrofono(ctx) {
+    modoAutomatico();   // en 'playback' iPhone rechaza el microfono (ver tonos.js)
     const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });

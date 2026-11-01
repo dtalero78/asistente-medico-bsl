@@ -5,6 +5,10 @@
 //   la prueba no baja de 0 dB HL estimado (ver PISO_HL en app.js).
 // - iPhone calla Web Audio con el interruptor de silencio, salvo con audioSession = 'playback'
 //   (Safari 16.4+). Sin eso, la revision de lateralidad detecta que no suena.
+// - PERO en 'playback' iPhone no deja abrir el microfono: getUserMedia falla sin mostrar el aviso de
+//   permisos (1-nov-2026: ningun paciente de iPhone pudo entrar). Por eso 'playback' solo se pone
+//   cuando el microfono ya esta cerrado, justo antes de los tonos, y modoAutomatico() lo devuelve al
+//   terminar: despues vienen la camara y el microfono de la entrevista. Nunca en desbloquear().
 // - Pulsos de 225 ms con rampas de 20 ms: sin chasquido al prender y apagar, y mas faciles de
 //   detectar que un tono continuo (no se confunden con un zumbido de oido).
 
@@ -16,19 +20,23 @@ export const DURACION_MS = PULSOS * ENCENDIDO_MS + (PULSOS - 1) * APAGADO_MS;
 export const MAX_DBFS = -6;          // nunca mas fuerte que esto, pase lo que pase con la calibracion
 const ADELANTO_S = 0.05;             // margen para agendar en el reloj de audio
 
-export function modoReproduccion() {
+function tipoDeSesion(tipo) {
     try {
-        if (navigator.audioSession) navigator.audioSession.type = 'playback';
+        if (navigator.audioSession) navigator.audioSession.type = tipo;
     } catch { /* navegador sin audioSession: no pasa nada */ }
 }
+
+/** Solo con el microfono cerrado (ver arriba). */
+export const modoReproduccion = () => tipoDeSesion('playback');
+/** El navegador decide: con microfono abierto, 'play-and-record'. Antes de pedir el microfono. */
+export const modoAutomatico = () => tipoDeSesion('auto');
 
 export function crearSalida() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx({ latencyHint: 'interactive' });
 
-    /** Llamar SINCRONO dentro del toque del paciente (iPhone). */
+    /** Llamar SINCRONO dentro del toque del paciente (iPhone). No cambia la sesion de audio. */
     function desbloquear() {
-        modoReproduccion();
         ctx.resume();
         const b = ctx.createBuffer(1, 1, ctx.sampleRate);
         const s = ctx.createBufferSource();

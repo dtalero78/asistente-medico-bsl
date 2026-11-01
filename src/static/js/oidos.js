@@ -17,7 +17,7 @@
 // de lateralidad (en mono nadie la pasaria) y de los tonos, y no se vuelve a abrir.
 import { crearUmbral } from '../prueba-oidos/src/umbral.js';
 import { PERFILES, aDbfs, VERSION_CALIBRACION } from '../prueba-oidos/src/perfiles.js';
-import { crearSalida, modoReproduccion, DURACION_MS } from '../prueba-oidos/src/tonos.js';
+import { crearSalida, modoReproduccion, modoAutomatico, DURACION_MS } from '../prueba-oidos/src/tonos.js';
 import { abrirMicrofono } from '../prueba-oidos/src/microfono.js';
 import { LIMITES, resumir } from '../prueba-oidos/src/resultado.js';
 import { audiograma } from '../prueba-oidos/src/audiograma.js';
@@ -103,6 +103,8 @@ export async function examenOidos(ui, salida) {
         guia.apagar();
         p.limpiar();
         salida.cerrar().catch(() => {});   // libera el audio antes de la camara y de LiveKit
+        // Sin esto la entrevista no podria abrir el microfono en iPhone (ver tonos.js)
+        modoAutomatico();
     }
 }
 
@@ -382,7 +384,7 @@ async function revisarLateralidad(p, salida, perfil) {
 // todo saldria "no oye". Se pausa y el toque de "Continuar" lo reactiva (iPhone exige el toque).
 async function audioPausado(p, salida) {
     p.paso('Se pausó el sonido', 'Revisa que los audífonos sigan conectados y el volumen al máximo.');
-    const r = p.opciones([{ etiqueta: 'Continuar', primario: true, alTocar: () => { salida.desbloquear(); return true; } }]);
+    const r = p.opciones([{ etiqueta: 'Continuar', primario: true, alTocar: () => { salida.desbloquear(); modoReproduccion(); return true; } }]);
     p.decir('oidos-pausa');
     await r;
     await dormir(300);

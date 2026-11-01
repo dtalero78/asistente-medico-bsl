@@ -23,6 +23,7 @@ from services.ai import enviar_sugerencias_whatsapp
 from services.session import create_realtime_session
 from services import avatar, grabacion
 from services.avatar import PACIENTE_DEMO
+from services import dispositivo
 import time
 
 
@@ -196,6 +197,21 @@ def avatar_page():
     return render_template('avatar.html')
 
 
+@app.route('/avatar/evento', methods=['POST'])
+def avatar_evento():
+    """Aviso del navegador: tocó «Iniciar Consulta» o algo falló antes de la entrevista
+    (static/js/dispositivo.js). Solo va al log, en una línea que empieza por EVENTO."""
+    # Viene sin login desde el celular del paciente: nada grande, nada que no sea el aviso
+    if (request.content_length or 0) > 8000:
+        return '', 413
+    evento = dispositivo.limpiar_evento(request.get_json(force=True, silent=True))
+    if evento is None:
+        return '', 400
+    (logger.info if evento['etapa'] == 'inicio' and not evento['error'] else logger.warning)(
+        dispositivo.linea_de_log(evento))
+    return '', 204
+
+
 @app.route('/avatar/session', methods=['POST'])
 def avatar_session():
     """Sin _id usa el paciente demo: sirve para probar sin tocar pacientes reales."""
@@ -225,7 +241,8 @@ def guardar_evidencia(_id, data, resumen, turnos):
     try:
         carpeta, prueba = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
                                                        resumen, turnos, data.get('ref'), data.get('inicio'),
-                                                       data.get('ojos'), data.get('oidos'))
+                                                       data.get('ojos'), data.get('oidos'),
+                                                       data.get('dispositivo'))
     except Exception as e:
         logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))

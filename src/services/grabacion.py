@@ -17,6 +17,8 @@ from datetime import datetime, timezone, timedelta
 import boto3
 import requests
 
+from services.dispositivo import limpiar_dispositivo
+
 logger = logging.getLogger(__name__)
 
 PREFIJO = "entrevistas-avatar"
@@ -273,7 +275,7 @@ def _guardar_audio(carpeta, conversation_id, meta, ref=None, inicio=None):
 
 
 def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=None, inicio=None, ojos=None,
-                       oidos=None):
+                       oidos=None, dispositivo=None):
     """Sube las fotos ya y el audio en segundo plano (ElevenLabs lo entrega con demora).
 
     Returns: (la carpeta en Spaces donde queda todo, la prueba de ojos limpia con las keys de sus
@@ -293,6 +295,8 @@ def guardar_entrevista(orden_id, conversation_id, fotos, resumen, turnos, ref=No
         "audio": None,
         "ojos": meta_ojos,
         "oidos": meta_oidos,
+        # Desde que celular y navegador (static/js/dispositivo.js): soporte y calibracion por equipo
+        "dispositivo": limpiar_dispositivo(dispositivo),
     }
     try:
         meta["fotos"] = _subir_fotos(carpeta, list(fotos or [])[:5] + fotos_ojos + fotos_de_oidos(oidos))

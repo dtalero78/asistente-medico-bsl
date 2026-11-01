@@ -97,6 +97,17 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
 - Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).
+- **Avisos del navegador** (`static/js/dispositivo.js` → `POST /avatar/evento`, `services/dispositivo.py`):
+  al tocar «Iniciar Consulta» (`inicio`) y cada vez que algo falla antes de la entrevista (permisos,
+  link usado, oídos u ojos no realizados, cámara, micrófono, conexión) el navegador lo avisa con el
+  error y el dispositivo (sistema, navegador, modelo, pantalla). Solo va al log, una línea por aviso:
+  `doctl apps logs 5cdf74ce-51ef-4530-a6c4-4883ea7527b4 --type run | grep EVENTO`. Nació el
+  1-nov-2026: en iPhone nadie podía entrar y el servidor no se enteró. El dispositivo también queda
+  en `meta.json` (`dispositivo`).
+- **iPhone y la sesión de audio**: con `navigator.audioSession.type = 'playback'` WebKit (Safari y
+  Chrome en iPhone) rechaza el micrófono sin mostrar el aviso de permisos. `playback` solo se pone
+  con el micrófono cerrado (antes de los tonos) y se vuelve a `auto` al terminar la prueba de oídos
+  (ver `prueba-oidos/src/tonos.js`).
 
 ### Prueba de oídos (primera, antes de la de ojos)
 

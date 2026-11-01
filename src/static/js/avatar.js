@@ -7,6 +7,8 @@ import { checkMicrophonePermission, showPermissionError } from './permissions.js
 import { precargarModelo, examenOjos, pintarResultados } from './ojos.js';
 import { prepararAudio, examenOidos, pintarResultadosOidos } from './oidos.js';
 import { crearGuia } from './guia-voz.js';
+// Avisos al servidor cuando algo falla antes de la entrevista (antes no habia rastro: 1-nov-2026)
+import { dispositivo, reportar } from './dispositivo.js';
 
 const { Room, RoomEvent, Track } = window.LivekitClient;
 
@@ -96,10 +98,12 @@ async function iniciar() {
     guia.desbloquear();
     const salidaOidos = prepararAudio();
     callButton.disabled = true;
+    reportar('inicio');
 
     const permission = await pedirPermisos();
     if (!permission.granted) {
         salidaOidos.cerrar().catch(() => {});
+        reportar('permisos', { name: permission.nombre, message: permission.error });
         showPermissionError(permission.error);
         callButton.disabled = false;
         return;
@@ -107,6 +111,7 @@ async function iniciar() {
 
     if (_id && await linkUsado()) {
         salidaOidos.cerrar().catch(() => {});
+        reportar('link', null, 'link ya usado');
         vc.dataset.estado = 'fin';
         callStatus.textContent = 'Esta consulta ya fue realizada';
         return;
@@ -115,7 +120,10 @@ async function iniciar() {
     vc.dataset.estado = 'oidos';
     mantenerPantallaEncendida();
     oidos = await examenOidos(oidosUI, salidaOidos);
-    if (!oidos.realizado) console.warn('[avatar] Prueba de oidos no realizada:', oidos.motivo);
+    if (!oidos.realizado) {
+        console.warn('[avatar] Prueba de oidos no realizada:', oidos.motivo);
+        reportar('oidos', null, `no realizada: ${oidos.motivo}`);
+    }
 
     vc.dataset.estado = 'ojos';
     await pruebaDeOjos();
@@ -128,6 +136,9 @@ async function pedirPermisos() {
         stream.getTracks().forEach(t => t.stop());
         return { granted: true };
     } catch (error) {
+        // El primer intento (camara + microfono) fallo: el aviso lleva el error real, aunque el
+        // segundo intento (solo microfono) funcione
+        reportar('permisos', error, 'camara y microfono juntos');
         // Sin camara (o camara ocupada) la consulta sigue: la prueba de ojos deja el motivo para el medico
         if (error.name !== 'NotAllowedError' && error.name !== 'PermissionDeniedError') return checkMicrophonePermission();
         return { granted: false, error: 'Necesitas permitir la cámara y el micrófono para la consulta. Toca el candado junto a la dirección de la página, permítelos y vuelve a intentarlo.' };
@@ -151,12 +162,14 @@ async function pruebaDeOjos() {
         if (error.name !== 'NotAllowedError' && error.name !== 'PermissionDeniedError') {
             // Falla nuestra, no del paciente: sigue a la consulta y el medico ve el motivo
             console.error('[avatar] Error en la prueba de ojos:', error);
+            reportar('ojos', error);
             ojos = { realizado: false, motivo: `Error inesperado (${error.message}).` };
             await pasarAlMedico();
             return;
         }
         // Camara negada. La prueba es obligatoria, asi que no se sigue sin ella
         console.warn('[avatar] Sin camara para la prueba de ojos:', error.name);
+        reportar('camara', error, 'prueba de ojos');
         ojosUI.titulo.textContent = 'Necesitamos tu cámara';
         ojosUI.indicacion.textContent = 'La prueba de ojos usa la cámara. Toca el candado junto a la dirección de la página, permite la cámara y vuelve a intentarlo.';
         ojosUI.estado.textContent = '';
@@ -164,7 +177,10 @@ async function pruebaDeOjos() {
         guia.decir('camara');
         return;
     }
-    if (!ojos.realizado) console.warn('[avatar] Prueba de ojos no realizada:', ojos.motivo);
+    if (!ojos.realizado) {
+        console.warn('[avatar] Prueba de ojos no realizada:', ojos.motivo);
+        reportar('ojos', null, `no realizada: ${ojos.motivo}`);
+    }
     await pasarAlMedico();
 }
 
@@ -185,6 +201,7 @@ async function startCall() {
 
     const permission = await checkMicrophonePermission();
     if (!permission.granted) {
+        reportar('microfono', { name: permission.nombre, message: permission.error }, 'antes de la entrevista');
         showPermissionError(permission.error);
         callStatus.textContent = 'Micrófono no disponible';
         vc.dataset.estado = 'listo';
@@ -237,6 +254,7 @@ async function startCall() {
         endCallBtn.hidden = false;
     } catch (error) {
         console.error('[avatar] Error al iniciar:', error);
+        reportar('conexion', error);
         apagarCamara();
         vc.dataset.estado = 'listo';
         showNotification('No se pudo conectar con el asistente. Intenta de nuevo.', 'error');
@@ -362,7 +380,8 @@ async function finishCall(motivo) {
                 inicio: sesion.inicio,
                 fotos,
                 ojos,
-                oidos
+                oidos,
+                dispositivo: dispositivo()
             })
         });
         const data = await res.json();

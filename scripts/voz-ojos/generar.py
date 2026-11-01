@@ -51,14 +51,19 @@ TEXTOS = {
     'oidos-al-reves': 'Parece que tienes los audífonos al revés. El que dice R va en el oído derecho, '
                       'y el que dice L, en el izquierdo. Probemos otra vez.',
     'oidos-otra-vez': 'Revisa que tengas puestos los dos audífonos y probemos otra vez.',
-    'oidos-prueba': 'Muy bien. Ahora empieza la prueba. Vas a oír pitidos, unos fuertes y otros muy suaves. '
-                    'Toca el botón azul solo cuando oigas el pitido, aunque sea muy suave. Si no oyes nada, '
-                    'no toques: hay momentos sin pitido a propósito. Mientras suenan, yo me quedo callado. '
-                    'Empezamos con el oído derecho.',
-    'oidos-izquierdo': 'Vas muy bien. Ahora el oído izquierdo. Recuerda: toca solo cuando oigas el pitido.',
+    'oidos-prueba': 'Muy bien. Ahora empieza la prueba. Vas a oír pitidos cortos, unos fuertes y otros muy suaves. '
+                    'Apenas oigas uno, toca el botón azul enseguida, sin esperar a que termine. '
+                    'Si no oyes nada, no toques: hay momentos sin pitido a propósito. '
+                    'Mientras suenan, yo me quedo callado. Primero practicamos con unos fuertes.',
+    # Practica (ver practicar() en oidos.js)
+    'oidos-practica-lista': '¡Eso es! Así de rápido. Ahora sí, empezamos con el oído derecho.',
+    'oidos-practica-otra': 'No alcanzaste a tocar. Apenas suene el pitido, toca el botón azul, '
+                           'no esperes a que termine. Probemos otra vez.',
+    'oidos-practica-sigamos': 'Sigamos. Empezamos con el oído derecho.',
+    'oidos-izquierdo': 'Vas muy bien. Ahora el oído izquierdo. Recuerda: toca apenas oigas el pitido, y solo si lo oyes.',
     # Antes de cada frecuencia, alternados para que no suene repetido
-    'oidos-solo': 'Toca solo cuando oigas el pitido.',
-    'oidos-solo-2': 'Otro tono. Recuerda: solo cuando lo oigas.',
+    'oidos-solo': 'Toca apenas oigas el pitido, y solo si lo oyes.',
+    'oidos-solo-2': 'Otro tono. Toca enseguida, pero solo si lo oyes.',
     # Toco en un momento sin pitido: se le corrige y se repite esa frecuencia
     'oidos-sin-tono': 'Tocaste cuando no había ningún pitido. Toca solo cuando lo oigas de verdad. Repetimos este tono.',
     # Dejo de responder tonos fuertes (ver INACTIVO_FALLOS en oidos.js)

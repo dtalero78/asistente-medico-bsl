@@ -63,6 +63,14 @@ class TestLimpiarOidos(unittest.TestCase):
         self.assertEqual(m['ensayos'][1], ['od', 1000.0, None, False, None])
         self.assertEqual((m['correcciones'], m['pausas'], m['camara']), (1.0, 0.0, 'ok'))
         self.assertNotIn('fotos', m)   # las fotos no van en el meta: se suben aparte
+        self.assertIsNone(m['practica'])   # pruebas oidos-1, sin practica
+
+    def test_practica(self):
+        m = limpiar_oidos({**PRUEBA, 'practica': {'rondas': 2, 'superada': True, 'latencias': [None, 1452, 980, 'x'] + [1] * 20}})
+        self.assertEqual(m['practica']['rondas'], 2.0)
+        self.assertTrue(m['practica']['superada'])
+        self.assertEqual(m['practica']['latencias'][:4], [None, 1452.0, 980.0, None])
+        self.assertEqual(len(m['practica']['latencias']), 12)
 
     def test_no_realizada(self):
         m = limpiar_oidos({'realizado': False, 'motivo': 'El paciente no tenía audífonos.', 'version': 'oidos-1'})

@@ -13,7 +13,8 @@ const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto'
     'oidos-intro', 'oidos-audifonos', 'oidos-sin-audifonos', 'oidos-silencio', 'oidos-ruido',
     'oidos-volumen', 'oidos-tono', 'oidos-oiste', 'oidos-no-sono', 'oidos-parlante', 'oidos-lado',
     'oidos-cual', 'oidos-al-reves', 'oidos-otra-vez', 'oidos-prueba', 'oidos-izquierdo',
-    'oidos-pausa', 'oidos-fin', 'oidos-solo', 'oidos-solo-2', 'oidos-sin-tono', 'oidos-sigues'];
+    'oidos-pausa', 'oidos-fin', 'oidos-solo', 'oidos-solo-2', 'oidos-sin-tono', 'oidos-sigues',
+    'oidos-practica-lista', 'oidos-practica-otra', 'oidos-practica-sigamos'];
 const MAX_CLIP_MS = 20000;   // si un clip no avisa que termino, no se queda esperando para siempre
 
 export function crearGuia() {

@@ -194,6 +194,10 @@ def limpiar_oidos(oidos):
         "perfil": texto(oidos.get("perfil"), 30),
         "umbrales": umbrales,
         "retest": {k: _numero(dic(oidos.get("retest")).get(k)) for k in ("primero", "segundo")},
+        "practica": {"rondas": _numero(dic(oidos.get("practica")).get("rondas")),
+                     "superada": bool(dic(oidos.get("practica")).get("superada")),
+                     "latencias": [_numero(x) for x in (dic(oidos.get("practica")).get("latencias") or [])[:12]]}
+                    if isinstance(oidos.get("practica"), dict) else None,
         "resumen": resumen,
         "falsos": {k: _numero(falsos.get(k)) for k in ("control", "contestados", "espontaneos", "tardios", "ensayos")},
         "ruido": {k: _numero(dic(oidos.get("ruido")).get(k)) for k in ("mediana", "p90")},

@@ -29,8 +29,9 @@ presencial (MA 790, Bogotá, intramural) a ≤30 días, la diferencia media es 1
 ## Cómo mide (oidos.js)
 
 1k, 2k, 3k, 4k, 6k, 500 Hz en el derecho, 1 kHz repetido, y lo mismo en el izquierdo. 12 % de
-ensayos sin tono (falsos positivos). Ventana de respuesta de 150 ms a 1,5 s desde el inicio del tono
-(dura 1,125 s; más corta, un toque al azar acierta menos; más no, por Bluetooth y gente lenta). Un
+ensayos sin tono (falsos positivos). Ventana de respuesta de 150 ms a 2,5 s desde el inicio del tono
+(dura 1,125 s). Era 1,5 s hasta `oidos-2`: la primera paciente real (1-nov-2026, Bluetooth, navegador
+de WhatsApp) perdió 45 respuestas por tardías y salió «repetir» sin haber tocado un solo silencio. Un
 toque hasta 0,7 s después de cerrar la ventana de un tono es «tardío» y no cuenta como al azar. Espera al azar entre ensayos. Antes de los tonos: tipo de
 audífono, ruido (5 s), volumen al máximo con tono de referencia (si el micrófono lo oye fuerte →
 sale por parlante) y lateralidad (2 tonos, ¿qué oído?).
@@ -38,8 +39,13 @@ sale por parlante) y lateralidad (2 tonos, ¿qué oído?).
 - **El micrófono se cierra antes de la lateralidad** y no se vuelve a abrir: con el micrófono
   abierto, los audífonos Bluetooth pasan a «manos libres», que es mono y de banda angosta (nadie
   pasaría la lateralidad y 6 kHz no se reproduciría). En iPhone además cambia la sesión de audio.
-- La voz calla mientras suenan tonos; antes de cada frecuencia dice «Toca solo cuando oigas el
-  pitido». Los toques fuera de la ventana solo cuentan como «al azar» mientras se mide.
+- **Práctica** antes de medir (`practicar`): 3 tonos fuertes (40 dB HL, 1 kHz) por los dos oídos;
+  con 2 a tiempo sigue, si no la voz explica otra vez (hasta 3 rondas, y sigue igual). No entra en
+  los umbrales; queda en `practica` (rondas, latencias, superada). Sin ella, los primeros tonos del
+  derecho eran el aprendizaje y salían «sin respuesta» aun a 70 dB.
+- La voz calla mientras suenan tonos; antes de cada frecuencia dice «Toca apenas oigas el pitido, y
+  solo si lo oyes»: las dos cosas, rápido y solo si lo oye (antes solo decía lo segundo y la gente
+  esperaba a estar segura). Los toques fuera de la ventana solo cuentan como «al azar» mientras se mide.
 - **Trampa** (tocar sin oír): contestar un silencio → la voz corrige y la frecuencia se repite (hasta
   3 veces). En `resultado.js`, silencios contestados, toques al azar (≥8 % de los ensayos dudosa,
   ≥15 % no confiable) y correcciones (2 dudosa, 3 no confiable) marcan `conducta`: con ella un
@@ -85,7 +91,7 @@ curva, repetición de 1 kHz, falsos positivos. Los límites de confiabilidad (`L
   `page.addInitScript({ path: '…/pruebas/simulador.js' })` y abrir `/static/prueba-oidos/index.html`
   (la guía de voz busca `/static/assets/…`: servir con Flask o con un estático cuya raíz tenga
   `static/`). El resultado queda en `window.__pruebaOidos`. Umbrales: `window.__umbralesSimulados`.
-  Modos (`window.__simulador`): `tocarAlAzar` (toques/s, el tramposo) y `ausente: [desde, hasta]`
-  (ms desde el primer tono). Lo que hizo queda en `window.__simStats`.
+  Modos (`window.__simulador`): `tocarAlAzar` (toques/s, el tramposo), `ausente: [desde, hasta]`
+  (ms desde el primer tono), y `lento` (ms de más en cada respuesta). Lo que hizo queda en `window.__simStats`.
   Ojo: `addInitScript` sigue activo en esa pestaña aunque se navegue a otra página.
 - Backend: `tests/test_oidos.py` (`grabacion.limpiar_oidos`).

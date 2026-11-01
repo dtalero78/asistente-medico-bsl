@@ -13,6 +13,8 @@
 // Modos (window.__simulador, antes de cargar la pagina):
 //   tocarAlAzar: toques/s al azar sobre el orbe, oiga o no (el tramposo)
 //   ausente: [desde, hasta] en ms desde el primer tono de la prueba: ni responde ni toca botones
+//   lento: ms de mas en cada respuesta (Bluetooth + reaccion lenta; la paciente del 1-nov-2026
+//          respondia hacia 1,2-2 s desde el inicio del tono)
 // Lo que hizo queda en window.__simStats.
 // Al terminar, index.html deja el resultado en window.__pruebaOidos.
 (() => {
@@ -63,14 +65,15 @@
         const oido = ch.size === 2 ? 'ambos' : ch.has(1) ? 'od' : 'oi';
         ultimoOido = oido;
         const a = amp.get(g) || 0;
-        if (a > 0 && RETSPL[f] != null && oido !== 'ambos') {
+        if (a > 0 && RETSPL[f] != null) {
             const hl = 20 * Math.log10(a) + 100 - RETSPL[f];
             const boton = document.getElementById('oidosOrbe');
             const enPrueba = boton && boton.dataset.modo === 'responde';
             if (enPrueba) { stats.tonos++; primerTono ??= performance.now(); }
             if (enPrueba && ausente()) stats.ignoradosAusente++;
-            else if (enPrueba && oye(hl, UMBRALES[oido][f])) {
-                const retraso = (t - this.context.currentTime) * 1000 + azar(350, 700);
+            // Por los dos oidos (la practica) lo oye el mejor
+            else if (enPrueba && oye(hl, oido === 'ambos' ? Math.min(UMBRALES.od[f], UMBRALES.oi[f]) : UMBRALES[oido][f])) {
+                const retraso = (t - this.context.currentTime) * 1000 + azar(350, 700) + (MODO.lento || 0);
                 setTimeout(() => boton.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })), retraso);
             }
         }

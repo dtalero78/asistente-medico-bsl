@@ -4,7 +4,8 @@
 //
 // Va guiada por la voz de Alirio (guia-voz.js), igual que la de ojos: cada paso se dice antes de
 // pedir algo. La voz se calla mientras suenan los tonos (taparia los mas suaves) y habla entre una
-// frecuencia y otra: antes de cada una repite "toca solo cuando oigas el pitido". Aqui el paciente si
+// frecuencia y otra: antes de cada una repite "toca apenas oigas el pitido, y solo si lo oyes". Antes de
+// medir hay una practica con tonos fuertes (practicar). Aqui el paciente si
 // mira la pantalla: contesta con botones.
 //
 // Contra la trampa (tocar sin oir): ensayos sin tono; si contesta uno, la voz lo corrige y esa
@@ -22,7 +23,7 @@ import { abrirMicrofono } from '../prueba-oidos/src/microfono.js';
 import { LIMITES, resumir } from '../prueba-oidos/src/resultado.js';
 import { audiograma } from '../prueba-oidos/src/audiograma.js';
 
-export const VERSION = 'oidos-1';
+export const VERSION = 'oidos-2';   // 2: practica y ventana de 2,5 s
 const PISO_HL = 0;               // mas abajo el celular no reproduce bien (16 bits)
 const TECHO_HL = 70;
 const INICIO_HL = 40;
@@ -36,10 +37,13 @@ const SECUENCIA = [
 ];
 const CONTROL_PROB = 0.12;       // ensayos sin tono: miden los falsos positivos
 const VENTANA_DESDE_MS = 150;    // antes de esto no es respuesta al tono, es un toque al azar
-// Hasta 1,5 s desde el inicio del tono (dura 1,125 s). Mas corta, un toque al azar "acierta" menos;
-// mas no se puede: Bluetooth atrasa el sonido 0,2-0,3 s y las personas mayores reaccionan mas lento.
+// Hasta 2,5 s desde el inicio del tono (dura 1,125 s). Era 1,5 s: la primera paciente real (1-nov-2026,
+// Bluetooth, navegador de WhatsApp) toco 78 veces a tiempo y 45 justo despues, con la mitad de las
+// respuestas por encima de 1,2 s. Bluetooth atrasa el sonido 0,2-0,3 s y mucha gente espera a oir los
+// tres pulsos antes de tocar; cada respuesta perdida cuenta como "no oyo" y sube el umbral. Los
+// ensayos sin tono usan la misma ventana, asi que la trampa sigue medida igual.
 // Nada en pantalla marca la ventana: una cuenta regresiva diria cuando hay pitido.
-const VENTANA_HASTA_MS = 1500;
+const VENTANA_HASTA_MS = 2500;
 // Un toque poco despues de cerrar la ventana de un tono es alguien lento (o con Bluetooth que
 // atrasa), no un toque al azar: se cuenta aparte, como "tardio", y no pesa en la confiabilidad
 const TARDIO_MS = 700;
@@ -59,7 +63,13 @@ const FOTO_ANCHO = 320;
 
 const GUIA_MUDA = { decir: async () => {}, callar() {}, apagar() {} };
 const RECORDATORIOS = ['oidos-solo', 'oidos-solo-2'];
-const SOLO_SI_OYES = 'Toca solo cuando oigas el pitido.';
+// Las dos cosas a la vez: rapido (si espera, la respuesta llega tarde y cuenta como "no oyo") y
+// solo si lo oye (contra la trampa). Antes solo decia lo segundo y la gente dudaba.
+const SOLO_SI_OYES = 'Toca apenas oigas el pitido, y solo si lo oyes.';
+// Practica antes de medir: tonos fuertes por los dos oidos, para que aprenda el ritmo
+const PRACTICA_TONOS = 3;
+const PRACTICA_ACIERTOS = 2;
+const PRACTICA_RONDAS = 3;
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const azar = (a, b) => a + Math.random() * (b - a);
 const limitar = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -233,7 +243,7 @@ async function correr(p, ui, salida, t0) {
 
     // 4. Tonos, con la camara prendida para las fotos (se abre antes: en iPhone abrirla puede
     // interrumpir el audio un instante, mejor mientras habla la voz que en medio de un tono)
-    p.paso('Ahora la prueba', `${SOLO_SI_OYES} Aunque sea muy suave.`, 'guia');
+    p.paso('Ahora la prueba', `${SOLO_SI_OYES} Primero practicamos.`, 'guia');
     const camara = await abrirCamara(ui.camara);
     await p.decir('oidos-prueba');
     let medidas;
@@ -264,6 +274,7 @@ async function correr(p, ui, salida, t0) {
         perfil: perfil.id,
         umbrales: medidas.umbrales,
         retest: medidas.retest,
+        practica: medidas.practica,
         resumen: resumir(base),
         falsos: medidas.falsos,
         ruido,
@@ -427,6 +438,7 @@ async function medirTonos(p, salida, perfil, camara) {
     const ensayos = [];   // [oido, frecuencia, hl | null (control), oyo, ms desde el inicio del tono]
     const fotos = [];
     let retest = null;
+    let practica = null;
     let ultimo = null;
     let correcciones = 0;
     let pausas = 0;
@@ -461,7 +473,52 @@ async function medirTonos(p, salida, perfil, camara) {
     const titulo = (oido) => (oido === 'od' ? 'Oído derecho' : 'Oído izquierdo');
     const aResponder = (oido) => p.paso(titulo(oido), SOLO_SI_OYES, 'responde', 'Lo oí');
 
+    // Practica: tonos fuertes por los dos oidos hasta que responda a tiempo. Sin ella, los primeros
+    // tonos del oido derecho eran el aprendizaje y salian "sin respuesta" aunque fueran de 70 dB.
+    // No entra en los umbrales; las latencias quedan para revisar la ventana.
+    async function practicar() {
+        const dbfs = aDbfs(REFERENCIA_HL, 1000, perfil);
+        const latencias = [];
+        for (let ronda = 1; ronda <= PRACTICA_RONDAS; ronda++) {
+            let aciertos = 0;
+            p.paso('Practiquemos', SOLO_SI_OYES, 'responde', 'Lo oí');
+            midiendo = true;
+            for (let k = 0; k < PRACTICA_TONOS; k++) {
+                await esperarVisible();
+                await dormir(azar(ESPERA_MIN_MS + 400, ESPERA_MAX_MS + 600));
+                if (salida.ctx.state !== 'running') {
+                    midiendo = false;
+                    await audioPausado(p, salida);
+                    p.paso('Practiquemos', SOLO_SI_OYES, 'responde', 'Lo oí');
+                    midiendo = true;
+                }
+                const t = salida.tono({ oido: 'ambos', frecuencia: 1000, dbfs });
+                const r = await esperarRespuesta(t.inicio + VENTANA_DESDE_MS, t.inicio + VENTANA_HASTA_MS, true);
+                latencias.push(r == null ? null : Math.round(r - t.inicio));
+                if (r != null) { aciertos++; await dormir(TRAS_RESPUESTA_MS); }
+            }
+            midiendo = false;
+            if (aciertos >= PRACTICA_ACIERTOS) {
+                p.paso('¡Eso es!', `Así de rápido. ${titulo('od')} primero.`, 'guia');
+                await p.decir('oidos-practica-lista');
+                return { rondas: ronda, latencias, superada: true };
+            }
+            if (ronda < PRACTICA_RONDAS) {
+                p.paso('Probemos otra vez', 'Apenas suene el pitido, toca el botón azul. No esperes a que termine.', 'guia');
+                await p.decir('oidos-practica-otra');
+            }
+        }
+        // Sigue igual: si de verdad no oye, la prueba lo mostrara; si no entendio, saldra "repetir"
+        p.paso('Sigamos', `${titulo('od')} primero.`, 'guia');
+        await p.decir('oidos-practica-sigamos');
+        return { rondas: PRACTICA_RONDAS, latencias, superada: false };
+    }
+
     try {
+        practica = await practicar();
+        falsos.tardios = 0;      // los toques de la practica no cuentan
+        falsos.espontaneos = 0;
+        cierreTono = -Infinity;
         let oidoActual = null;
         for (let i = 0; i < SECUENCIA.length; i++) {
             const { oido, f, retest: esRetest } = SECUENCIA[i];
@@ -568,7 +625,7 @@ async function medirTonos(p, salida, perfil, camara) {
         document.removeEventListener('visibilitychange', alOcultar);
     }
     falsos.ensayos = ensayos.length;
-    return { umbrales, falsos, ensayos, retest, correcciones, pausas, fotos };
+    return { umbrales, falsos, ensayos, retest, practica, correcciones, pausas, fotos };
 }
 
 // ------------------------------------------------------------------ resultados para el paciente

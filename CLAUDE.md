@@ -121,9 +121,10 @@ oído. Reemplazo propuesto de `audiometria-virtual.html` de PLATAFORMA2.
   contesta con botones. **La voz calla mientras suenan los tonos**; solo habla entre un oído y otro.
 - El orbe del centro es el botón «Lo oí». **Nada en pantalla puede cambiar cuando suena un tono**
   (sería una pista): sus anillos respiran siempre igual. Tampoco hay cuenta regresiva: cada tono
-  tiene su ventana (1,5 s desde que empieza) y si no toca, cuenta como «no oyó» y sigue.
-- **Contra la trampa** (tocar sin oír): antes de cada frecuencia la voz dice «Toca solo cuando oigas
-  el pitido»; 12 % de los ensayos no tienen tono y si contesta uno la voz lo corrige y esa frecuencia
+  tiene su ventana (2,5 s desde que empieza) y si no toca, cuenta como «no oyó» y sigue. Antes de
+  medir hay una práctica con 3 tonos fuertes por los dos oídos.
+- **Contra la trampa** (tocar sin oír): antes de cada frecuencia la voz dice «Toca apenas oigas el
+  pitido, y solo si lo oyes» (rápido y solo si lo oye); 12 % de los ensayos no tienen tono y si contesta uno la voz lo corrige y esa frecuencia
   se repite. Si tocó sin pitido, un resultado normal nunca sale «pasa» sino «repetir» (la trampa
   produce justo eso: umbrales mejores de lo que son).
 - **Contra el abandono**: si deja de responder 4 tonos seguidos que debería oír (≥40 dB, el nivel

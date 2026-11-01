@@ -5,7 +5,8 @@
 
 // Navegador a partir del user agent. En iPhone todos usan WebKit: CriOS = Chrome, FxiOS = Firefox.
 function navegador(ua) {
-    if (/WhatsApp/i.test(ua)) return 'WhatsApp (navegador interno)';
+    // WA4A: el navegador interno de WhatsApp en Android, que por lo demas dice Chrome
+    if (/WhatsApp|WA4A/i.test(ua)) return 'WhatsApp (navegador interno)';
     if (/FBAN|FBAV|Instagram/i.test(ua)) return 'Facebook/Instagram (navegador interno)';
     if (/CriOS/.test(ua)) return 'Chrome iOS';
     if (/FxiOS/.test(ua)) return 'Firefox iOS';

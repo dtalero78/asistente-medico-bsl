@@ -16,7 +16,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 logger.info("Flask iniciado correctamente")
 
-from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos
+from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria
 from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
@@ -218,8 +218,8 @@ def avatar_session():
 
 
 def guardar_evidencia(_id, data, resumen, turnos):
-    """Evidencia de la entrevista a Spaces (con las pruebas de oidos y ojos en meta.json) y la prueba
-    de ojos a HistoriaClinica.pruebaOjos.
+    """Evidencia de la entrevista a Spaces (con las pruebas de oidos y ojos en meta.json), la prueba
+    de ojos a HistoriaClinica.pruebaOjos y la de oidos a audiometrias (la que lee el certificado).
     Si Spaces falla, la prueba igual queda en la historia clinica, sin fotos."""
     carpeta, prueba = None, None
     try:
@@ -231,6 +231,9 @@ def guardar_evidencia(_id, data, resumen, turnos):
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))
     if _id and prueba is not None:
         guardar_prueba_ojos(_id, prueba)
+    # La audiometria de las ordenes de NUBIA: la plataforma ya no la pide, la hace el asistente
+    if _id:
+        guardar_audiometria(_id, grabacion.limpiar_oidos(data.get('oidos')))
     return carpeta
 
 

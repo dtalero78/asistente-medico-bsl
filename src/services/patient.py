@@ -147,3 +147,106 @@ def guardar_prueba_ojos(_id, prueba):
     except Exception as e:
         logger.error("Error al guardar la prueba de ojos en PostgreSQL: %s", str(e))
         return {"success": False, "error": str(e)}
+
+
+# Prueba de oidos -> tabla audiometrias de BSL-PLATAFORMA2. Para las ordenes de NUBIA la plataforma
+# ya no pide su audiometria virtual (capas/reglas/pruebas-requeridas.js, QUITA_SI_MEDICO_BOT): esta
+# fila es la que leen el certificado, la historia clinica en PDF y el informe por empresa.
+EQUIPO_ASISTENTE = 'Asistente virtual BSL'
+FRECUENCIAS_AUDIOMETRIA = ('500', '1000', '2000', '3000', '4000', '6000')
+TECHO_OIDOS_HL = 70
+VEREDICTO_TEXTO = {
+    'pasa': 'audición dentro de lo esperado',
+    'remitir': 'requiere valoración auditiva',
+    'repetir': 'prueba no concluyente, repetir',
+}
+
+
+def _umbral_columna(u):
+    """dB HL de una frecuencia para la columna aereo_*: 'no oye ni en el techo' se guarda como el
+    techo (70), igual que la audiometria virtual anterior guardaba 70 cuando no oia."""
+    if not isinstance(u, dict):
+        return None
+    if u.get('estado') == 'sin-respuesta':
+        return TECHO_OIDOS_HL
+    hl = u.get('hl')
+    return int(round(hl)) if isinstance(hl, (int, float)) and not isinstance(hl, bool) else None
+
+
+def fila_audiometria(meta):
+    """La prueba de oidos (ya limpia, grabacion.limpiar_oidos) como columnas de audiometrias, o None
+    si no se hizo. Puro: sin BD."""
+    if not isinstance(meta, dict) or not meta.get('realizado') or not meta.get('resumen'):
+        return None
+    r = meta['resumen']
+    fila = {'equipo': EQUIPO_ASISTENTE}
+    for oido in ('od', 'oi'):
+        umbrales = (meta.get('umbrales') or {}).get(oido) or {}
+        for f in FRECUENCIAS_AUDIOMETRIA:
+            fila[f'aereo_{oido}_{f}'] = _umbral_columna(umbrales.get(f))
+        grado = (r.get('grado') or {}).get(oido)
+        fila[f'diagnostico_{oido}'] = f'Tamizaje: audición {grado}' if grado else None
+
+    conf = r.get('confiabilidad') or {}
+    partes = ['Tamizaje auditivo con el asistente virtual de BSL, con los audífonos del paciente '
+              '(calibración provisional; no reemplaza una audiometría en cabina).',
+              f"Resultado: {VEREDICTO_TEXTO.get(r.get('veredicto'), 'sin veredicto')}."]
+    nivel = (conf.get('nivel') or 'sin dato').replace('-', ' ')
+    motivos = [m for m in (conf.get('motivos') or []) if m]
+    partes.append(f"Confiabilidad: {nivel}" + (f" ({'; '.join(motivos)})." if motivos else '.'))
+    pta = r.get('pta4') or {}
+    if pta.get('od') is not None and pta.get('oi') is not None:
+        partes.append(f"PTA4: oído derecho {round(pta['od'])} dB, oído izquierdo {round(pta['oi'])} dB.")
+    asim = r.get('asimetria') or {}
+    if asim.get('presente'):
+        partes.append(f"Asimetría entre oídos, peor el {'derecho' if asim.get('peorOido') == 'od' else 'izquierdo'}.")
+    caida = r.get('caidaAgudos') or {}
+    for oido, nombre in (('od', 'derecho'), ('oi', 'izquierdo')):
+        if (caida.get(oido) or {}).get('presente'):
+            partes.append(f'Caída en agudos (patrón compatible con ruido), oído {nombre}.')
+    fila['interpretacion'] = ' '.join(partes)
+
+    veredicto = r.get('veredicto')
+    fila['recomendaciones'] = {
+        'remitir': 'Valoración auditiva con audiometría en cabina.',
+        'repetir': 'Repetir la prueba auditiva: el resultado no fue confiable.',
+    }.get(veredicto)
+    fila['remision'] = 'AUDIOLOGIA' if veredicto == 'remitir' else 'NO APLICA'
+    return fila
+
+
+def guardar_audiometria(_id, meta):
+    """Escribe la prueba de oidos en audiometrias. Si la orden ya tiene una audiometria hecha en la
+    plataforma (virtual o por un profesional), no la toca: solo actualiza la que escribio el
+    asistente (un reintento). Los datos del paciente salen de HistoriaClinica."""
+    fila = fila_audiometria(meta)
+    if not _id or fila is None:
+        return {"success": False, "motivo": "sin prueba de oidos"}
+    columnas = list(fila)
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, equipo FROM audiometrias WHERE orden_id = %s AND tenant_id = 'bsl' "
+                    "AND deleted_at IS NULL ORDER BY id DESC LIMIT 1", (_id,))
+                existente = cur.fetchone()
+                if existente and existente[1] != EQUIPO_ASISTENTE:
+                    logger.info("Orden %s ya tiene audiometria de la plataforma: no se toca", _id)
+                    return {"success": True, "omitida": True}
+                if existente:
+                    sets = ', '.join(f'{c} = %s' for c in columnas)
+                    cur.execute(f"UPDATE audiometrias SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                                [fila[c] for c in columnas] + [existente[0]])
+                else:
+                    cur.execute(
+                        f'INSERT INTO audiometrias (orden_id, numero_id, primer_nombre, primer_apellido, empresa, '
+                        f'cod_empresa, tenant_id, {", ".join(columnas)}) '
+                        f'SELECT _id, "numeroId", "primerNombre", "primerApellido", empresa, "codEmpresa", \'bsl\', '
+                        f'{", ".join(["%s"] * len(columnas))} FROM "HistoriaClinica" WHERE _id = %s',
+                        [fila[c] for c in columnas] + [_id])
+                conn.commit()
+                logger.info("Audiometria del asistente guardada para %s - filas: %d", _id, cur.rowcount)
+                return {"success": True, "rows_affected": cur.rowcount}
+    except Exception as e:
+        logger.error("Error al guardar la audiometria del asistente en PostgreSQL: %s", str(e))
+        return {"success": False, "error": str(e)}

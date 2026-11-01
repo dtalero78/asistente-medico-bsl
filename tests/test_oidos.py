@@ -14,6 +14,8 @@ from unittest import mock  # noqa: E402
 
 from services import grabacion  # noqa: E402
 from services.grabacion import limpiar_oidos, fotos_de_oidos, MAX_ENSAYOS_OIDOS  # noqa: E402
+from services import patient  # noqa: E402
+from services.patient import fila_audiometria, guardar_audiometria, EQUIPO_ASISTENTE  # noqa: E402
 
 FOTO = 'data:image/jpeg;base64,/9j/4AAQ'
 
@@ -113,6 +115,110 @@ class TestFotosOidos(unittest.TestCase):
         self.assertEqual(meta['oidos']['fotos'], [f'{carpeta}/foto-2-oidos-1.jpg', f'{carpeta}/foto-3-oidos-2.jpg'])
         self.assertIn(f'{carpeta}/foto-1-inicio.jpg', subidas)
         self.assertEqual(meta['oidos']['resumen']['veredicto'], 'remitir')
+
+
+class TestFilaAudiometria(unittest.TestCase):
+    """La prueba de oidos como fila de audiometrias (la que lee el certificado en PLATAFORMA2)."""
+
+    def test_columnas(self):
+        f = fila_audiometria(limpiar_oidos(PRUEBA))
+        self.assertEqual(f['equipo'], EQUIPO_ASISTENTE)
+        self.assertEqual(f['aereo_od_1000'], 15)
+        self.assertEqual(f['aereo_od_4000'], 70)          # no oyo ni en el techo
+        self.assertEqual(f['aereo_oi_500'], 0)            # oyo en el piso
+        self.assertIsNone(f['aereo_od_500'])              # no medida
+        self.assertNotIn('aereo_od_250', f)               # 250 y 8000 no se miden: quedan como estan
+        self.assertEqual(f['diagnostico_od'], 'Tamizaje: audición leve')
+        self.assertEqual(f['remision'], 'AUDIOLOGIA')
+        self.assertIn('requiere valoración auditiva', f['interpretacion'])
+        self.assertIn('Asimetría entre oídos, peor el derecho', f['interpretacion'])
+        self.assertIn('Caída en agudos (patrón compatible con ruido), oído derecho', f['interpretacion'])
+        self.assertIn('audiometría en cabina', f['recomendaciones'])
+
+    def test_pasa_y_repetir(self):
+        pasa = {**PRUEBA, 'resumen': {**PRUEBA['resumen'], 'veredicto': 'pasa'}}
+        self.assertEqual(fila_audiometria(limpiar_oidos(pasa))['remision'], 'NO APLICA')
+        self.assertIsNone(fila_audiometria(limpiar_oidos(pasa))['recomendaciones'])
+        rep = {**PRUEBA, 'resumen': {**PRUEBA['resumen'], 'veredicto': 'repetir',
+                                     'confiabilidad': {'nivel': 'no-confiable', 'motivos': ['Contestó 5 de 20 silencios']}}}
+        f = fila_audiometria(limpiar_oidos(rep))
+        self.assertIn('Confiabilidad: no confiable (Contestó 5 de 20 silencios).', f['interpretacion'])
+        self.assertIn('Repetir', f['recomendaciones'])
+
+    def test_sin_prueba_no_hay_fila(self):
+        self.assertIsNone(fila_audiometria(None))
+        self.assertIsNone(fila_audiometria(limpiar_oidos({'realizado': False, 'motivo': 'Sin audífonos'})))
+
+
+class _Cursor:
+    def __init__(self, existente):
+        self.existente, self.sql, self.rowcount = existente, [], 1
+
+    def execute(self, sql, params=None):
+        self.sql.append((sql, params))
+
+    def fetchone(self):
+        return self.existente
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class _Pool:
+    def __init__(self, cursor):
+        self.cur = cursor
+
+    def connection(self):
+        pool = self
+
+        class _Conn:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def cursor(self):
+                return pool.cur
+
+            def commit(self):
+                pass
+        return _Conn()
+
+
+class TestGuardarAudiometria(unittest.TestCase):
+
+    def _guardar(self, existente):
+        cur = _Cursor(existente)
+        with mock.patch.object(patient, 'db_pool', _Pool(cur)):
+            r = guardar_audiometria('orden_1', limpiar_oidos(PRUEBA))
+        return r, [sql for sql, _ in cur.sql], cur.sql
+
+    def test_sin_audiometria_inserta_con_los_datos_de_la_orden(self):
+        r, sqls, crudo = self._guardar(None)
+        self.assertTrue(r['success'])
+        self.assertTrue(sqls[1].startswith('INSERT INTO audiometrias'))
+        self.assertIn('FROM "HistoriaClinica" WHERE _id = %s', sqls[1])
+        self.assertEqual(crudo[1][1][-1], 'orden_1')
+
+    def test_reintento_actualiza_la_del_asistente(self):
+        r, sqls, _ = self._guardar((7, EQUIPO_ASISTENTE))
+        self.assertTrue(sqls[1].startswith('UPDATE audiometrias SET'))
+
+    def test_no_toca_la_de_la_plataforma(self):
+        for equipo in (None, 'MA 790'):
+            r, sqls, _ = self._guardar((7, equipo))
+            self.assertTrue(r.get('omitida'), equipo)
+            self.assertEqual(len(sqls), 1, equipo)   # solo el SELECT
+
+    def test_sin_prueba_no_escribe(self):
+        with mock.patch.object(patient, 'db_pool', _Pool(_Cursor(None))) as p:
+            self.assertFalse(guardar_audiometria('orden_1', None)['success'])
+            self.assertEqual(p.cur.sql, [])
+
 
 if __name__ == '__main__':
     unittest.main()

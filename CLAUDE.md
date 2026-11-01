@@ -98,9 +98,42 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.
 - Variables: ver `.env.example` (LIVEAVATAR_*, ELEVENLABS_*, SPACES_*).
 
+### Prueba de oídos (primera, antes de la de ojos)
+
+Al tocar «Iniciar Consulta» va primero un tamizaje auditivo con los audífonos del paciente
+(`src/static/js/oidos.js`; algoritmos y calibración en `src/static/prueba-oidos/`, con su propio
+CLAUDE.md). Unos 8 min: audífonos → ruido → volumen → lateralidad → tonos en 6 frecuencias por
+oído. Reemplazo propuesto de `audiometria-virtual.html` de PLATAFORMA2.
+
+- **Misma experiencia que la de ojos**: voz de Alirio en cada paso (clips `oidos-*` en
+  `scripts/voz-ojos/generar.py`, misma carpeta `voz-ojos/`). Aquí el paciente sí mira la pantalla y
+  contesta con botones. **La voz calla mientras suenan los tonos**; solo habla entre un oído y otro.
+- El orbe del centro es el botón «Lo oí». **Nada en pantalla puede cambiar cuando suena un tono**
+  (sería una pista): sus anillos respiran siempre igual. Tampoco hay cuenta regresiva: cada tono
+  tiene su ventana (1,5 s desde que empieza) y si no toca, cuenta como «no oyó» y sigue.
+- **Contra la trampa** (tocar sin oír): antes de cada frecuencia la voz dice «Toca solo cuando oigas
+  el pitido»; 12 % de los ensayos no tienen tono y si contesta uno la voz lo corrige y esa frecuencia
+  se repite. Si tocó sin pitido, un resultado normal nunca sale «pasa» sino «repetir» (la trampa
+  produce justo eso: umbrales mejores de lo que son).
+- **Contra el abandono**: si deja de responder 4 tonos seguidos que debería oír (≥40 dB, el nivel
+  que ya oyó en la revisión de volumen), se pausa y pregunta «¿Sigues ahí?». Sin esto la prueba
+  seguía sola y salía una sordera que no existe.
+- **Contra la suplantación**: el saludo avisa que se toman fotos durante los tonos; la cámara
+  frontal se ve en un círculo y se toman 3 (`oidos-N`), que se suben con las de la entrevista.
+- El `AudioContext` de los tonos se crea en el toque de «Iniciar Consulta» (`prepararAudio`, junto a
+  `guia.desbloquear()`, antes de cualquier `await`) y se cierra al terminar, antes de la cámara y LiveKit.
+- **Bluetooth**: con el micrófono abierto los audífonos pasan a «manos libres» (mono). El micrófono
+  solo se usa para ruido y parlante y se cierra ANTES de la lateralidad y los tonos.
+- Sin audífonos («No tengo») o cualquier falla → `{realizado: false, motivo}` y sigue a ojos.
+- El resultado viaja en `/avatar/end` (`oidos`); `grabacion.limpiar_oidos` lo deja en `meta.json`
+  (`oidos`, con dBFS crudos y ensayos para recalibrar, y las keys de sus fotos). **Todavía no va a la historia clínica** ni a
+  `audiometrias` de PLATAFORMA2. El paciente ve audiograma y veredicto bajo el resumen
+  (`pintarResultadosOidos`).
+- Página para probarla sola, sin entrevista: `/static/prueba-oidos/index.html`.
+
 ### Prueba de ojos (obligatoria, antes de la entrevista)
 
-Al tocar «Iniciar Consulta» el paciente pasa primero por tres estudios del Escáner Ocular
+Después de la de oídos, el paciente pasa por tres estudios del Escáner Ocular
 (`src/static/escaner-ocular/`, con su propio CLAUDE.md): tamizaje (foto de los ojos), fatiga
 (60 s de parpadeo) y pupilas (la pantalla en blanco, luego en rojo y un destello). Son unos 2 min y medio. La cáscara
 para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.

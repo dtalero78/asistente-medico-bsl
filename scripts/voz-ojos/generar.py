@@ -1,4 +1,4 @@
-"""Genera con ElevenLabs la voz que guia la prueba de ojos y la musica del minuto quieto.
+"""Genera con ElevenLabs la voz que guia las pruebas de oidos y de ojos, y la musica del minuto quieto.
 
 Quedan grabadas en src/static/assets/voz-ojos/ y se sirven como archivos: no se paga ElevenLabs en
 cada consulta. La voz es la del medico virtual (Alirio, la misma de scripts/agente-avatar/sync.py),
@@ -29,10 +29,45 @@ SALIDA = RAIZ / 'src' / 'static' / 'assets' / 'voz-ojos'
 VOZ = 'nPwdEe2zxbAbdkRLsG5T'   # Alirio
 MODELO = 'eleven_v4_turbo'
 
-# De tu, como el medico. Frases cortas: el paciente esta mirando la camara, no la pantalla.
+# De tu, como el medico. Frases cortas: en la de ojos el paciente esta mirando la camara, no la pantalla.
 TEXTOS = {
-    'intro': 'Hola. Antes de hablar con el asistente virtual, vamos a revisar tus ojos con la cámara. '
-             'Son unos dos minutos y yo te voy guiando.',
+    # Prueba de oidos (static/js/oidos.js): va primero. Aqui el paciente si mira la pantalla y
+    # contesta con botones; la voz dice que tocar. Nunca habla mientras suenan los tonos.
+    'oidos-intro': 'Hola. Antes de hablar con el asistente virtual vamos a hacer dos pruebas cortas: '
+                   'primero tus oídos y después tus ojos. Yo te voy guiando. Mientras suenan los tonos '
+                   'voy a tomar unas fotos con la cámara, para confirmar que eres tú quien hace la prueba.',
+    'oidos-audifonos': 'Ponte tus audífonos, los dos, y toca en la pantalla qué tipo de audífonos tienes.',
+    'oidos-sin-audifonos': 'Sin audífonos no podemos hacer la prueba de oídos. Sigamos con la de los ojos.',
+    'oidos-silencio': 'Quédate en silencio unos segundos, que voy a medir el ruido del lugar.',
+    'oidos-ruido': 'Hay mucho ruido donde estás. Si puedes, busca un lugar más silencioso y toca: medir otra vez.',
+    'oidos-volumen': 'Sube el volumen de tu celular hasta el máximo. Cuando lo tengas, toca: ya lo subí.',
+    'oidos-tono': 'Ahora vas a oír un tono en los dos oídos.',
+    'oidos-oiste': '¿Lo oíste? Toca tu respuesta.',
+    'oidos-no-sono': 'No sonó. Revisa que el volumen esté al máximo y que los audífonos estén conectados. '
+                     'Si tienes iPhone, revisa que no esté en modo silencio.',
+    'oidos-parlante': 'Parece que el sonido está saliendo por el parlante del celular. Conecta tus audífonos y póntelos.',
+    'oidos-lado': 'Ahora vas a oír un tono en un solo oído. Después me dices en cuál lo oíste.',
+    'oidos-cual': '¿En qué oído lo oíste?',
+    'oidos-al-reves': 'Parece que tienes los audífonos al revés. El que dice R va en el oído derecho, '
+                      'y el que dice L, en el izquierdo. Probemos otra vez.',
+    'oidos-otra-vez': 'Revisa que tengas puestos los dos audífonos y probemos otra vez.',
+    'oidos-prueba': 'Muy bien. Ahora empieza la prueba. Vas a oír pitidos, unos fuertes y otros muy suaves. '
+                    'Toca el botón azul solo cuando oigas el pitido, aunque sea muy suave. Si no oyes nada, '
+                    'no toques: hay momentos sin pitido a propósito. Mientras suenan, yo me quedo callado. '
+                    'Empezamos con el oído derecho.',
+    'oidos-izquierdo': 'Vas muy bien. Ahora el oído izquierdo. Recuerda: toca solo cuando oigas el pitido.',
+    # Antes de cada frecuencia, alternados para que no suene repetido
+    'oidos-solo': 'Toca solo cuando oigas el pitido.',
+    'oidos-solo-2': 'Otro tono. Recuerda: solo cuando lo oigas.',
+    # Toco en un momento sin pitido: se le corrige y se repite esa frecuencia
+    'oidos-sin-tono': 'Tocaste cuando no había ningún pitido. Toca solo cuando lo oigas de verdad. Repetimos este tono.',
+    # Dejo de responder tonos fuertes (ver INACTIVO_FALLOS en oidos.js)
+    'oidos-sigues': '¿Sigues ahí? Toca el botón para continuar.',
+    'oidos-pausa': 'Se pausó el sonido. Revisa tus audífonos y toca: continuar.',
+    'oidos-fin': 'Listo, terminamos con tus oídos.',
+
+    # Prueba de ojos (static/js/ojos.js): va despues de la de oidos
+    'intro': 'Ahora vamos a revisar tus ojos con la cámara. Son unos dos minutos y yo te voy guiando.',
     'tamizaje': 'Primero voy a tomar una foto de tus ojos. Sostén el celular frente a tu cara, a un palmo '
                 'de distancia, con buena luz de frente, y mira la cámara. Yo te voy diciendo si te acercas o '
                 'te alejas. Cuando estés bien te aviso: te quedas quieto y la foto se toma sola.',

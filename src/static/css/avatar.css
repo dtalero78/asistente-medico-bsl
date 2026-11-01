@@ -1,5 +1,5 @@
 /* Pagina del avatar (/avatar): videollamada al estilo Zoom. El paciente se ve a si mismo a
-   pantalla completa y el doctor va en un circulo en la esquina. data-estado en .vc: inicio | ojos | listo | llamada | fin
+   pantalla completa y el doctor va en un circulo en la esquina. data-estado en .vc: inicio | oidos | ojos | listo | llamada | fin
    Sin foto de fondo: el escenario es gris oscuro neutro, como cualquier sala de videollamada. */
 body.avatar-page {
     overscroll-behavior: none;
@@ -24,6 +24,7 @@ body.avatar-page {
     inset: 0;
 }
 .vc[data-estado="inicio"] .vc-escenario,
+.vc[data-estado="oidos"] .vc-escenario,
 .vc[data-estado="ojos"] .vc-escenario,
 .vc[data-estado="listo"] .vc-escenario { display: none; }
 
@@ -122,6 +123,7 @@ body.avatar-page {
     background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.6));
 }
 .vc[data-estado="inicio"] .vc-shade,
+.vc[data-estado="oidos"] .vc-shade,
 .vc[data-estado="ojos"] .vc-shade,
 .vc[data-estado="listo"] .vc-shade { display: none; }
 
@@ -238,6 +240,7 @@ body.avatar-page {
     padding: 0 16px;
 }
 .vc[data-estado="inicio"] .vc-bar .call-status,
+.vc[data-estado="oidos"] .vc-bar .call-status,
 .vc[data-estado="ojos"] .vc-bar .call-status,
 .vc[data-estado="listo"] .vc-bar .call-status { display: none; }
 
@@ -468,4 +471,279 @@ body.avatar-page {
     .vc-bar { bottom: max(10px, env(safe-area-inset-bottom)); gap: 8px; }
     #endCallBtn.vc-hangup { height: 42px; padding: 0 18px; }
     .vc-previa { display: none; }
+}
+
+/* Requisito en la tarjeta de inicio: los audifonos */
+.vc-requisito {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(11, 92, 255, 0.12);
+    border: 1px solid rgba(91, 140, 255, 0.25);
+    font-size: 0.9rem;
+    text-align: left;
+    color: #dbe6ff;
+}
+.vc-requisito svg { flex: none; width: 22px; height: 22px; fill: none; stroke: #8fb6ff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ================================================================== Prueba de oidos (oidos.js)
+   Pantalla completa, oscura, con un orbe al centro. El orbe cambia de modo (data-modo):
+   guia (icono de audifonos, quieto) · escucha (texto "Escucha…") · responde (es el boton "Lo oí")
+   · listo (chulo verde). Sus anillos respiran todo el tiempo al mismo ritmo: NADA en pantalla
+   puede cambiar cuando suena un tono, seria una pista para el paciente. */
+.vc-oidos {
+    --oi-acento: #0b5cff;
+    --oi-acento-2: #5b8cff;
+    --oi-ok: #35b36b;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+    background:
+        radial-gradient(120% 60% at 50% 0%, rgba(11, 92, 255, 0.18), transparent 60%),
+        radial-gradient(80% 50% at 50% 100%, rgba(91, 140, 255, 0.08), transparent 70%),
+        #131417;
+    overflow-y: auto;
+}
+.vc:not([data-estado="oidos"]) .vc-oidos { display: none; }
+
+.oi-cabeza { width: min(100%, 460px); margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.oi-paso { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.oi-progreso { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.oi-progreso span {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--oi-acento), var(--oi-acento-2));
+    border-radius: inherit;
+    transition: width 0.6s cubic-bezier(.2, .8, .2, 1);
+}
+
+.oi-centro {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: 20px 0 12px;
+    min-height: 0;
+}
+.oi-centro h2 { font-size: 1.45rem; font-weight: 500; line-height: 1.25; letter-spacing: -0.01em; max-width: 420px; }
+.oi-indicacion { font-size: 0.98rem; line-height: 1.45; color: rgba(255, 255, 255, 0.7); max-width: 380px; min-height: 1.45em; }
+.oi-indicacion:empty { display: none; }
+
+/* Izquierdo · Derecho: pastilla con el oido activo encendido */
+.oi-lados {
+    display: inline-flex;
+    padding: 4px;
+    gap: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.oi-lados[hidden] { display: none; }
+.oi-lados span {
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    transition: background 0.3s, color 0.3s;
+}
+.oi-lados span.activo { background: linear-gradient(135deg, var(--oi-acento), var(--oi-acento-2)); color: #fff; box-shadow: 0 4px 14px rgba(11, 92, 255, 0.35); }
+
+/* El orbe */
+.oi-orbe {
+    position: relative;
+    width: clamp(150px, 46vw, 220px);
+    aspect-ratio: 1;
+    margin: 18px 0 10px;
+    border: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font: 500 1.6rem/1 'IBM Plex Sans', sans-serif;
+    background: radial-gradient(circle at 32% 26%, #3a4150, #232733 60%, #1b1e26);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 50px rgba(0, 0, 0, 0.45);
+    cursor: default;
+    transition: transform 0.35s cubic-bezier(.2, .8, .2, 1), background 0.4s, box-shadow 0.4s;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+.oi-orbe > * { grid-area: 1 / 1; }
+.oi-orbe::before,
+.oi-orbe::after {
+    content: '';
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(91, 140, 255, 0.28);
+    animation: oi-respira 3.6s ease-in-out infinite;
+    pointer-events: none;
+}
+.oi-orbe::after { inset: -30px; border-color: rgba(91, 140, 255, 0.14); animation-delay: -1.8s; }
+@keyframes oi-respira {
+    0%, 100% { transform: scale(0.97); opacity: 0.6; }
+    50% { transform: scale(1.03); opacity: 1; }
+}
+.oi-orbe-icono, .oi-orbe-listo { width: 38%; height: 38%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: opacity 0.3s, transform 0.3s; }
+.oi-orbe-listo { opacity: 0; transform: scale(0.6); stroke-width: 2.2; }
+.oi-orbe-texto { opacity: 0; transition: opacity 0.3s; }
+
+.oi-orbe[data-modo="escucha"] .oi-orbe-icono { opacity: 0.22; transform: scale(1.25); }
+.oi-orbe[data-modo="escucha"] .oi-orbe-texto { opacity: 1; font-size: 1.15rem; color: rgba(255, 255, 255, 0.85); }
+
+.oi-orbe[data-modo="responde"] {
+    width: clamp(190px, 62vw, 270px);
+    cursor: pointer;
+    background: radial-gradient(circle at 32% 24%, #5b8cff, var(--oi-acento) 55%, #0843c4);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 22px 60px rgba(11, 92, 255, 0.38);
+}
+.oi-orbe[data-modo="responde"] .oi-orbe-icono { opacity: 0; }
+.oi-orbe[data-modo="responde"] .oi-orbe-texto { opacity: 1; font-weight: 600; font-size: 1.8rem; letter-spacing: -0.01em; }
+.oi-orbe[data-modo="responde"]::before { border-color: rgba(91, 140, 255, 0.4); }
+.oi-orbe.toque { animation: oi-toque 0.32s ease-out; }
+@keyframes oi-toque {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.93); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 0 0 14px rgba(91, 140, 255, 0.25); }
+    100% { transform: scale(1); }
+}
+
+.oi-orbe[data-modo="listo"] { background: radial-gradient(circle at 32% 24%, #5fd193, var(--oi-ok) 60%, #22844c); box-shadow: 0 18px 50px rgba(53, 179, 107, 0.35); }
+.oi-orbe[data-modo="listo"] .oi-orbe-icono { opacity: 0; }
+.oi-orbe[data-modo="listo"] .oi-orbe-listo { opacity: 1; transform: scale(1); }
+.oi-orbe[data-modo="listo"]::before, .oi-orbe[data-modo="listo"]::after { border-color: rgba(53, 179, 107, 0.25); }
+
+/* Camara frontal durante los tonos, en un circulo chico arriba a la derecha: que se vea que esta
+   prendida (las fotos confirman que es el paciente) */
+.oi-camara {
+    position: absolute;
+    top: max(44px, calc(env(safe-area-inset-top) + 28px));
+    right: 16px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    background: #23262e;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    z-index: 1;
+}
+.oi-camara[hidden] { display: none; }
+
+/* Un punto por frecuencia */
+.oi-frecuencias { display: flex; gap: 7px; list-style: none; padding: 0; margin: 0; }
+.oi-frecuencias[hidden] { display: none; }
+.oi-frecuencias li { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.14); transition: background 0.3s, transform 0.3s; }
+.oi-frecuencias li.hecha { background: rgba(255, 255, 255, 0.6); }
+.oi-frecuencias li.actual { background: var(--oi-acento-2); transform: scale(1.35); box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.25); }
+
+/* "Escucha la instrucción" con barras mientras habla la voz */
+.oi-voz {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+.oi-voz[hidden] { display: none; }
+.oi-ondas { display: inline-flex; align-items: center; gap: 3px; height: 14px; }
+.oi-ondas i { width: 3px; height: 100%; border-radius: 2px; background: var(--oi-acento-2); animation: oi-onda 0.9s ease-in-out infinite; }
+.oi-ondas i:nth-child(2) { animation-delay: -0.2s; }
+.oi-ondas i:nth-child(3) { animation-delay: -0.45s; }
+.oi-ondas i:nth-child(4) { animation-delay: -0.65s; }
+@keyframes oi-onda { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+/* Botones de respuesta abajo, al alcance del pulgar */
+.oi-opciones { width: min(100%, 460px); margin: 0 auto; display: grid; gap: 10px; }
+.oi-opciones:empty { display: none; }
+.oi-opciones[data-tipo="perfiles"],
+.oi-opciones[data-tipo="lados"] { grid-template-columns: 1fr 1fr; }
+.oi-opciones[data-tipo="lados"] .oi-opcion:last-child { grid-column: 1 / -1; }
+.oi-opcion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    animation: oi-entra 0.35s cubic-bezier(.2, .8, .2, 1) both;
+}
+.oi-opcion:nth-child(2) { animation-delay: 0.04s; }
+.oi-opcion:nth-child(3) { animation-delay: 0.08s; }
+.oi-opcion:nth-child(4) { animation-delay: 0.12s; }
+.oi-opcion:nth-child(5) { animation-delay: 0.16s; }
+.oi-opcion:nth-child(6) { animation-delay: 0.2s; }
+@keyframes oi-entra { from { opacity: 0; transform: translateY(8px); } }
+.oi-opcion:active { transform: scale(0.97); }
+.oi-opcion:focus-visible { outline: 3px solid #8fb6ff; outline-offset: 2px; }
+.oi-opcion.primario { background: linear-gradient(135deg, var(--oi-acento), #3a74ff); border-color: transparent; box-shadow: 0 8px 24px rgba(11, 92, 255, 0.3); font-weight: 500; }
+.oi-opcion-texto { display: flex; flex-direction: column; gap: 2px; }
+.oi-opcion-texto strong { font-weight: 500; }
+.oi-opcion-texto small { font-size: 0.78rem; color: rgba(255, 255, 255, 0.55); line-height: 1.3; }
+.oi-opcion svg { flex: none; width: 26px; height: 26px; fill: none; stroke: #8fb6ff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Tarjetas de audifono: icono arriba, texto abajo */
+.oi-opciones[data-tipo="perfiles"] .oi-opcion { flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; min-height: 96px; padding: 14px; }
+.oi-opciones[data-tipo="perfiles"] .oi-opcion svg { width: 28px; height: 28px; }
+.oi-opciones[data-tipo="perfiles"] .oi-opcion[data-valor="ninguno"] svg { stroke: rgba(255, 255, 255, 0.4); }
+.oi-opciones[data-tipo="lados"] .oi-opcion { min-height: 72px; font-size: 1.1rem; }
+
+/* Resultados de la prueba de oidos, bajo el resumen */
+.vc-oidos-resultados {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.vc-oidos-resultados[hidden] { display: none; }
+.oi-res-titulo { font-size: 1.05rem; font-weight: 500; }
+.oi-res-veredicto { padding: 10px 14px; border-radius: 12px; font-size: 0.95rem; }
+.oi-res-veredicto.ok { background: rgba(53, 179, 107, 0.14); color: #6fd39b; }
+.oi-res-veredicto.alerta { background: rgba(231, 181, 90, 0.14); color: #e7b55a; }
+.oi-res-audiograma { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 12px; padding: 8px; }
+.oi-res-audiograma svg { display: block; width: 100%; height: auto; }
+.ag-normal { fill: rgba(53, 179, 107, 0.08); }
+.ag-rejilla { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.ag-eje { fill: rgba(255, 255, 255, 0.45); font-size: 10px; font-family: 'IBM Plex Sans', sans-serif; }
+.ag-linea { fill: none; stroke-width: 1.5; }
+.ag-marca { fill: none; stroke-width: 2; }
+.ag-linea.od, .ag-marca.od { stroke: #ff6b66; }
+.ag-linea.oi, .ag-marca.oi { stroke: #6c9dff; }
+.oi-res-oidos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.oi-res-oido { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
+.oi-res-oido span { font-size: 0.8rem; }
+.oi-res-oido.od span { color: #ff8a86; }
+.oi-res-oido.oi span { color: #8fb6ff; }
+.oi-res-oido strong { font-size: 1.25rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.oi-res-oido small { font-size: 0.75rem; color: rgba(255, 255, 255, 0.55); }
+.oi-res-nota { font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); line-height: 1.4; }
+
+@media (prefers-reduced-motion: reduce) {
+    .oi-orbe::before, .oi-orbe::after, .oi-ondas i, .oi-opcion { animation: none; }
+}
+@media (max-height: 640px) {
+    .oi-orbe { width: clamp(120px, 34vw, 170px); margin: 8px 0 4px; }
+    .oi-orbe[data-modo="responde"] { width: clamp(160px, 46vw, 210px); }
+    .oi-centro { gap: 10px; padding-top: 8px; }
+    .oi-opciones[data-tipo="perfiles"] .oi-opcion { min-height: 76px; }
 }

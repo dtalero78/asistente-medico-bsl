@@ -1,4 +1,4 @@
-// Voz que guia la prueba de ojos y musica del tiempo quieto. Los audios estan grabados en
+// Voz que guia las pruebas de oidos y de ojos, y musica del tiempo quieto. Los audios estan grabados en
 // static/assets/voz-ojos/ (scripts/voz-ojos/generar.py, voz de Alirio, la del medico).
 //
 // iPhone solo deja sonar un <audio> si su primer play() ocurre dentro de un toque del paciente, y
@@ -9,7 +9,11 @@ const BASE = '/static/assets/voz-ojos/';
 const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto', 'un-poco-mas',
     'perfecto', 'boton-foto', 'no-te-veo',
     'foto-lista', 'fatiga', 'fatiga-que', 'faltan-30', 'fatiga-casi', 'pupilas', 'pupilas-luz',
-    'pupilas-rojo', 'pupilas-destello', 'pupilas-listo', 'fin', 'camara'];
+    'pupilas-rojo', 'pupilas-destello', 'pupilas-listo', 'fin', 'camara',
+    'oidos-intro', 'oidos-audifonos', 'oidos-sin-audifonos', 'oidos-silencio', 'oidos-ruido',
+    'oidos-volumen', 'oidos-tono', 'oidos-oiste', 'oidos-no-sono', 'oidos-parlante', 'oidos-lado',
+    'oidos-cual', 'oidos-al-reves', 'oidos-otra-vez', 'oidos-prueba', 'oidos-izquierdo',
+    'oidos-pausa', 'oidos-fin', 'oidos-solo', 'oidos-solo-2', 'oidos-sin-tono', 'oidos-sigues'];
 const MAX_CLIP_MS = 20000;   // si un clip no avisa que termino, no se queda esperando para siempre
 
 export function crearGuia() {

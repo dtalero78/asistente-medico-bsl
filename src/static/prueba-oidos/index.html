@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Prueba de oídos · BSL</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/avatar.css" />
+  <style>
+    /* Solo de esta pagina de prueba: el JSON del final */
+    .demo-json { margin-top: 14px; font-size: 0.8rem; color: rgba(255,255,255,.6); }
+    .demo-json pre { max-height: 260px; overflow: auto; font-size: 10px; background: rgba(255,255,255,.04); padding: 10px; border-radius: 8px; white-space: pre; }
+  </style>
+</head>
+<!-- La prueba de oidos sola, con la misma cascara y estilos del avatar (static/js/oidos.js), para
+     probarla sin abrir la entrevista. No guarda ni envia nada. -->
+<body class="avatar-page">
+  <main class="vc" id="vc" data-estado="inicio">
+    <div class="vc-inicio">
+      <div class="vc-tarjeta">
+        <h1>Prueba de oídos</h1>
+        <p>Página de prueba: la misma que hace el paciente antes de la de ojos. No guarda nada.</p>
+        <p class="vc-requisito">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
+          <span>Ten a mano tus audífonos y busca un lugar silencioso.</span>
+        </p>
+        <button id="empezar" class="vc-boton">Empezar</button>
+      </div>
+    </div>
+
+    <section class="vc-oidos" id="oidos" aria-label="Prueba de oídos">
+      <!-- Camara frontal durante los tonos: fotos para confirmar que es el paciente (se le avisa) -->
+      <video class="oi-camara" id="oidosCamara" playsinline muted hidden aria-label="Tu cámara"></video>
+      <header class="oi-cabeza">
+        <p class="oi-paso" id="oidosPaso">Prueba de oídos</p>
+        <div class="oi-progreso" aria-hidden="true"><span id="oidosBarra"></span></div>
+      </header>
+      <div class="oi-centro">
+        <div class="oi-lados" id="oidosLados" hidden>
+          <span data-lado="oi">Izquierdo</span>
+          <span data-lado="od">Derecho</span>
+        </div>
+        <button type="button" class="oi-orbe" id="oidosOrbe" data-modo="guia" aria-label="Lo oí">
+          <svg class="oi-orbe-icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
+          <svg class="oi-orbe-listo" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+          <span class="oi-orbe-texto" id="oidosOrbeTexto"></span>
+        </button>
+        <ol class="oi-frecuencias" id="oidosFrecuencias" aria-hidden="true" hidden></ol>
+        <h2 id="oidosTitulo">Prueba de oídos</h2>
+        <p class="oi-indicacion" id="oidosIndicacion"></p>
+        <p class="oi-voz" id="oidosVoz" role="status" hidden>
+          <span class="oi-ondas" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          Escucha la instrucción
+        </p>
+      </div>
+      <div class="oi-opciones" id="oidosOpciones"></div>
+    </section>
+
+    <div class="vc-resumen" id="resumenCard" hidden>
+      <section class="vc-oidos-resultados" id="oidosResultados" hidden></section>
+      <details class="demo-json">
+        <summary>Datos de la prueba (JSON)</summary>
+        <pre id="json"></pre>
+      </details>
+      <button id="repetir" class="vc-boton" style="margin-top:14px">Repetir</button>
+    </div>
+  </main>
+  <script type="module" src="demo.js"></script>
+</body>
+</html>

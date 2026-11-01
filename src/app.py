@@ -218,13 +218,14 @@ def avatar_session():
 
 
 def guardar_evidencia(_id, data, resumen, turnos):
-    """Evidencia de la entrevista a Spaces y la prueba de ojos a HistoriaClinica.pruebaOjos.
+    """Evidencia de la entrevista a Spaces (con las pruebas de oidos y ojos en meta.json) y la prueba
+    de ojos a HistoriaClinica.pruebaOjos.
     Si Spaces falla, la prueba igual queda en la historia clinica, sin fotos."""
     carpeta, prueba = None, None
     try:
         carpeta, prueba = grabacion.guardar_entrevista(_id, data.get('conversation_id'), data.get('fotos'),
                                                        resumen, turnos, data.get('ref'), data.get('inicio'),
-                                                       data.get('ojos'))
+                                                       data.get('ojos'), data.get('oidos'))
     except Exception as e:
         logger.error("No se pudo guardar la grabacion de %s: %s", _id or 'demo', e)
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))

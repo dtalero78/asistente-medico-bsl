@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Pruebas de unidad · Prueba de oídos</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #0d1117; color: #e6edf3; padding: 24px; }
+    h1 { font-size: 16px; }
+    .ok { color: #2ea043; }
+    .fail { color: #f85149; }
+    .grupo { margin: 18px 0 8px; color: #8b98a5; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    li { list-style: none; }
+    #resumen { margin-top: 20px; padding: 12px; border: 1px solid #2a3441; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Pruebas de unidad — algoritmos de la prueba de oídos</h1>
+  <div id="salida"></div>
+  <div id="resumen">corriendo…</div>
+
+  <script type="module">
+import { correr } from "./casos.js";
+
+const salida = document.getElementById("salida");
+let pasadas = 0, fallidas = 0;
+
+correr({
+  grupo(nombre) {
+    const h = document.createElement("p");
+    h.className = "grupo";
+    h.textContent = nombre;
+    salida.appendChild(h);
+  },
+  comprobar(nombre, condicion, detalle) {
+    const li = document.createElement("li");
+    li.className = condicion ? "ok" : "fail";
+    li.textContent = (condicion ? "✓ " : "✗ ") + nombre + (condicion || detalle === undefined ? "" : "  → " + detalle);
+    salida.appendChild(li);
+    if (condicion) pasadas++; else fallidas++;
+  },
+});
+document.getElementById("resumen").textContent = `${pasadas} pasadas, ${fallidas} fallidas`;
+document.getElementById("resumen").className = fallidas ? "fail" : "ok";
+  </script>
+</body>
+</html>

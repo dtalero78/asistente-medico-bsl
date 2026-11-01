@@ -36,14 +36,49 @@
                     <span class="vc-previa-texto">El asistente se conecta cuando entres</span>
                 </div>
                 <h1>Consulta de validación</h1>
-                <p>Primero una prueba de ojos con la cámara, guiada por voz (unos 2 minutos y medio) y luego hablas con el asistente virtual de BSL. Activa tu cámara y tu micrófono.</p>
+                <p>Primero una prueba de oídos y una de ojos, guiadas por voz (unos 10 minutos), y luego hablas con el asistente virtual de BSL. Activa tu cámara y tu micrófono.</p>
+                <p class="vc-requisito">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
+                    <span>Ten a mano tus audífonos y busca un lugar silencioso.</span>
+                </p>
                 <label class="vc-consentimiento">
                     <input type="checkbox" id="consentimiento">
-                    <span>Acepto que la consulta se grabe en audio, que se tomen fotos de mi cámara para verificar mi identidad y que las medidas y fotos de la prueba de ojos se guarden para el médico, según la política de tratamiento de datos de BSL.</span>
+                    <span>Acepto que la consulta se grabe en audio, que se tomen fotos de mi cámara para verificar mi identidad y que las medidas de la prueba de oídos y las medidas y fotos de la prueba de ojos se guarden para el médico, según la política de tratamiento de datos de BSL.</span>
                 </label>
                 <button id="callButton" aria-label="Iniciar consulta con el asistente médico">Iniciar Consulta</button>
             </div>
         </div>
+
+        <!-- Prueba de oidos (static/js/oidos.js): va primero, con los audifonos del paciente. El orbe
+             del centro es el boton "Lo oí" durante los tonos; nada en pantalla marca cuando suena
+             un tono (seria una pista) -->
+        <section class="vc-oidos" id="oidos" aria-label="Prueba de oídos">
+            <!-- Camara frontal durante los tonos: fotos para confirmar que es el paciente (se le avisa) -->
+            <video class="oi-camara" id="oidosCamara" playsinline muted hidden aria-label="Tu cámara"></video>
+            <header class="oi-cabeza">
+                <p class="oi-paso" id="oidosPaso">Prueba de oídos</p>
+                <div class="oi-progreso" aria-hidden="true"><span id="oidosBarra"></span></div>
+            </header>
+            <div class="oi-centro">
+                <div class="oi-lados" id="oidosLados" hidden>
+                    <span data-lado="oi">Izquierdo</span>
+                    <span data-lado="od">Derecho</span>
+                </div>
+                <button type="button" class="oi-orbe" id="oidosOrbe" data-modo="guia" aria-label="Lo oí">
+                    <svg class="oi-orbe-icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
+                    <svg class="oi-orbe-listo" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                    <span class="oi-orbe-texto" id="oidosOrbeTexto"></span>
+                </button>
+                <ol class="oi-frecuencias" id="oidosFrecuencias" aria-hidden="true" hidden></ol>
+                <h2 id="oidosTitulo">Prueba de oídos</h2>
+                <p class="oi-indicacion" id="oidosIndicacion"></p>
+                <p class="oi-voz" id="oidosVoz" role="status" hidden>
+                    <span class="oi-ondas" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    Escucha la instrucción
+                </p>
+            </div>
+            <div class="oi-opciones" id="oidosOpciones"></div>
+        </section>
 
         <!-- Prueba de ojos (static/js/ojos.js): obligatoria, antes de la consulta. Los resultados no
              se le muestran al paciente: van a la ficha del medico junto con la entrevista -->
@@ -67,7 +102,7 @@
         <div class="vc-listo">
             <div class="vc-tarjeta">
                 <h1>No pudimos conectar con el asistente</h1>
-                <p>Revisa tu señal y vuelve a intentarlo. La prueba de ojos ya quedó hecha.</p>
+                <p>Revisa tu señal y vuelve a intentarlo. Las pruebas de oídos y ojos ya quedaron hechas.</p>
                 <button id="conectarBtn" class="vc-boton">Intentar de nuevo</button>
             </div>
         </div>
@@ -84,6 +119,8 @@
         <div class="vc-resumen" id="resumenCard" hidden>
             <h2 id="resumenTitulo">Consulta finalizada</h2>
             <pre id="resumen"></pre>
+            <!-- Resultados de la prueba de oidos (oidos.js pintarResultadosOidos) -->
+            <section class="vc-oidos-resultados" id="oidosResultados" aria-label="Resultados de tu prueba de oídos" hidden></section>
             <!-- Resultados de la prueba de ojos, con las fotos de cada ojo (ojos.js pintarResultados) -->
             <section class="vc-ojos-resultados" id="ojosResultados" aria-label="Resultados de tu prueba de ojos" hidden></section>
             <p class="vc-cerrar" id="cerrarAviso" hidden>Ya puedes cerrar esta ventana.</p>

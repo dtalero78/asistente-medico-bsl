@@ -1,10 +1,11 @@
 // Avatar en video: sala LiveKit creada por LiveAvatar (services/avatar.py). Se ve como una
 // videollamada: la camara del paciente en grande (solo local, no se publica) y el doctor en un circulo.
-// Antes de la consulta va la prueba de ojos (ojos.js), obligatoria; sus resultados viajan en
-// memoria y se guardan junto con la entrevista en /avatar/end.
+// Antes de la consulta van la prueba de oidos (oidos.js) y la de ojos (ojos.js), en ese orden; sus
+// resultados viajan en memoria y se guardan junto con la entrevista en /avatar/end.
 import { showNotification } from './ui.js';
 import { checkMicrophonePermission, showPermissionError } from './permissions.js';
 import { precargarModelo, examenOjos, pintarResultados } from './ojos.js';
+import { prepararAudio, examenOidos, pintarResultadosOidos } from './oidos.js';
 import { crearGuia } from './guia-voz.js';
 
 const { Room, RoomEvent, Track } = window.LivekitClient;
@@ -19,6 +20,7 @@ const doctorBubble = document.getElementById('doctorBubble');
 const resumenCard = document.getElementById('resumenCard');
 const resumenBox = document.getElementById('resumen');
 const ojosResultados = document.getElementById('ojosResultados');
+const oidosResultados = document.getElementById('oidosResultados');
 const cerrarAviso = document.getElementById('cerrarAviso');
 const reintentarBtn = document.getElementById('reintentarBtn');
 const audioBtn = document.getElementById('audioBtn');
@@ -36,6 +38,20 @@ const ojosUI = {
 const ojosReintentar = document.getElementById('ojosReintentar');
 const guia = crearGuia();
 ojosUI.guia = guia;
+const oidosUI = {
+    paso: document.getElementById('oidosPaso'),
+    barra: document.getElementById('oidosBarra'),
+    orbe: document.getElementById('oidosOrbe'),
+    orbeTexto: document.getElementById('oidosOrbeTexto'),
+    titulo: document.getElementById('oidosTitulo'),
+    indicacion: document.getElementById('oidosIndicacion'),
+    voz: document.getElementById('oidosVoz'),
+    opciones: document.getElementById('oidosOpciones'),
+    lados: document.getElementById('oidosLados'),
+    frecuencias: document.getElementById('oidosFrecuencias'),
+    camara: document.getElementById('oidosCamara'),
+    guia,
+};
 
 // Debe coincidir con FRASE_CIERRE en services/avatar.py
 const FRASE_CIERRE = 'estoy generando tu resumen';
@@ -53,6 +69,7 @@ let cerrando = false;
 let finalizando = false;
 let conversationId = null;
 let ojos = null;   // resultado de la prueba de ojos; sobrevive a "Intentar de nuevo"
+let oidos = null;  // igual, el de la prueba de oidos
 
 // Evidencia de la entrevista (opcion "audio + fotos"): el audio completo lo graba ElevenLabs en
 // sus servidores, y aqui solo se toman unas fotos pequenas de la camara del paciente para
@@ -71,28 +88,36 @@ function tomarFoto(momento) {
     fotos.push({ momento, imagen: canvas.toDataURL('image/jpeg', 0.7) });
 }
 
-// Un solo toque para todo: consentimiento + "Iniciar Consulta" arranca la prueba de ojos y al
-// terminar entra el medico. Los permisos y el link se revisan antes de la prueba: no tiene sentido
-// hacer dos minutos de prueba para despues decir "Esta consulta ya fue realizada".
+// Un solo toque para todo: consentimiento + "Iniciar Consulta" arranca la prueba de oidos, sigue la
+// de ojos y al terminar entra el medico. Los permisos y el link se revisan antes de las pruebas: no
+// tiene sentido hacer diez minutos de prueba para despues decir "Esta consulta ya fue realizada".
 async function iniciar() {
-    guia.desbloquear();   // antes de cualquier await: iPhone solo deja sonar dentro del toque
+    // Antes de cualquier await: iPhone solo deja sonar (la voz y los tonos) dentro del toque
+    guia.desbloquear();
+    const salidaOidos = prepararAudio();
     callButton.disabled = true;
 
     const permission = await pedirPermisos();
     if (!permission.granted) {
+        salidaOidos.cerrar().catch(() => {});
         showPermissionError(permission.error);
         callButton.disabled = false;
         return;
     }
 
     if (_id && await linkUsado()) {
+        salidaOidos.cerrar().catch(() => {});
         vc.dataset.estado = 'fin';
         callStatus.textContent = 'Esta consulta ya fue realizada';
         return;
     }
 
-    vc.dataset.estado = 'ojos';
+    vc.dataset.estado = 'oidos';
     mantenerPantallaEncendida();
+    oidos = await examenOidos(oidosUI, salidaOidos);
+    if (!oidos.realizado) console.warn('[avatar] Prueba de oidos no realizada:', oidos.motivo);
+
+    vc.dataset.estado = 'ojos';
     await pruebaDeOjos();
 }
 
@@ -336,7 +361,8 @@ async function finishCall(motivo) {
                 ref: sesion.ref,
                 inicio: sesion.inicio,
                 fotos,
-                ojos
+                ojos,
+                oidos
             })
         });
         const data = await res.json();
@@ -355,6 +381,7 @@ async function finishCall(motivo) {
         callStatus.textContent = data.demo ? 'Demo: el resumen no se envió a nadie' : 'Resumen enviado. Ya puedes cerrar esta ventana.';
         if (data.resumen) {
             resumenBox.textContent = data.resumen;
+            pintarResultadosOidos(oidosResultados, oidos);
             pintarResultados(ojosResultados, ojos);
             cerrarAviso.hidden = false;
             resumenCard.hidden = false;
@@ -366,8 +393,8 @@ async function finishCall(motivo) {
     }
 }
 
-// "Intentar de nuevo" tras una llamada cortada: la prueba de ojos ya esta hecha, solo se repite la
-// entrevista. Recargar la pagina obligaba a repetir la prueba.
+// "Intentar de nuevo" tras una llamada cortada: las pruebas de oidos y ojos ya estan hechas, solo se
+// repite la entrevista. Recargar la pagina obligaba a repetirlas.
 function reintentarLlamada() {
     room = null;
     sesion = null;
@@ -383,6 +410,7 @@ function reintentarLlamada() {
     reintentarBtn.hidden = true;
     document.getElementById('resumenTitulo').textContent = 'Consulta finalizada';
     resumenBox.textContent = '';
+    pintarResultadosOidos(oidosResultados, null);
     pintarResultados(ojosResultados, null);
     cerrarAviso.hidden = true;
     callStatus.textContent = 'Listo para iniciar';
@@ -411,6 +439,6 @@ document.addEventListener('visibilitychange', () => {
         if (room && !finalizando) ocultaTimer = setTimeout(() => finishCall('pestaña oculta'), 30000);
     } else {
         clearTimeout(ocultaTimer);
-        if ((room && !finalizando) || vc.dataset.estado === 'ojos') mantenerPantallaEncendida();
+        if ((room && !finalizando) || ['oidos', 'ojos'].includes(vc.dataset.estado)) mantenerPantallaEncendida();
     }
 });

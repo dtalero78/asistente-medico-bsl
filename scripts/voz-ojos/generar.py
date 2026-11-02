@@ -45,6 +45,11 @@ TEXTOS = {
     'oidos-oiste': '¿Lo oíste? Toca tu respuesta.',
     'oidos-no-sono': 'No sonó. Revisa que el volumen esté al máximo y que los audífonos estén conectados. '
                      'Si tienes iPhone, revisa que no esté en modo silencio.',
+    # Tras 2 "No oí nada" en la revision de volumen: salida para no quedar atascado
+    'oidos-no-suena': 'No logramos que suene. Puedes probar otra vez, o seguir con la prueba de los ojos.',
+    # iPhone con iOS anterior a 16.4: el interruptor de silencio calla los tonos
+    'oidos-iphone-silencio': 'Antes de seguir, apaga el modo silencio de tu iPhone: es el interruptor del costado, '
+                             'encima de los botones de volumen. Cuando lo apagues, toca: listo.',
     'oidos-parlante': 'Parece que el sonido está saliendo por el parlante del celular. Conecta tus audífonos y póntelos.',
     'oidos-lado': 'Ahora vas a oír un tono en un solo oído. Después me dices en cuál lo oíste.',
     'oidos-cual': '¿En qué oído lo oíste?',

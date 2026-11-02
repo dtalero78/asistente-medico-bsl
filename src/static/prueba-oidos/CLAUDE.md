@@ -75,7 +75,10 @@ curva, repetición de 1 kHz, falsos positivos. Los límites de confiabilidad (`L
 - Una página web no puede leer ni fijar el volumen del sistema. Se pide al máximo; una curva
   plana y alta en los dos oídos se marca «posible volumen bajo».
 - iPhone calla Web Audio con el interruptor de silencio: `navigator.audioSession.type =
-  'playback'` (Safari 16.4+). La revisión de volumen pregunta si sonó.
+  'playback'` (Safari 16.4+). La revisión de volumen pregunta si sonó. En iPhone sin
+  `audioSession` (iOS < 16.4) se le pide antes apagar el modo silencio. Tras 2 «No oí nada» se
+  ofrece «Seguir sin la prueba de oídos» (`realizado: false`); antes no había salida y una paciente
+  con iOS 16.1 quedó atascada sin aviso (2-nov-2026). Cada «No oí nada» va a los avisos (`EVENTO oidos`).
 - Si el `AudioContext` se suspende a mitad de la prueba (llamada, alarma) los tonos no sonarían:
   antes de cada tono se revisa y, si no está `running`, se pausa y se pide un toque. **Este camino
   no lo cubre el simulador** (no puede suspender el audio).
@@ -92,6 +95,6 @@ curva, repetición de 1 kHz, falsos positivos. Los límites de confiabilidad (`L
   (la guía de voz busca `/static/assets/…`: servir con Flask o con un estático cuya raíz tenga
   `static/`). El resultado queda en `window.__pruebaOidos`. Umbrales: `window.__umbralesSimulados`.
   Modos (`window.__simulador`): `tocarAlAzar` (toques/s, el tramposo), `ausente: [desde, hasta]`
-  (ms desde el primer tono), y `lento` (ms de más en cada respuesta). Lo que hizo queda en `window.__simStats`.
+  (ms desde el primer tono), `mudo` (el tono de referencia nunca le suena) y `lento` (ms de más en cada respuesta). Lo que hizo queda en `window.__simStats`.
   Ojo: `addInitScript` sigue activo en esa pestaña aunque se navegue a otra página.
 - Backend: `tests/test_oidos.py` (`grabacion.limpiar_oidos`).

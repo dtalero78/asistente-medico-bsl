@@ -22,6 +22,7 @@ import { crearSalida, modoReproduccion, modoAutomatico, DURACION_MS } from '../p
 import { abrirMicrofono } from '../prueba-oidos/src/microfono.js';
 import { LIMITES, resumir } from '../prueba-oidos/src/resultado.js';
 import { audiograma } from '../prueba-oidos/src/audiograma.js';
+import { reportar } from './dispositivo.js';
 
 export const VERSION = 'oidos-2';   // 2: practica y ventana de 2,5 s
 const PISO_HL = 0;               // mas abajo el celular no reproduce bien (16 bits)
@@ -65,6 +66,14 @@ const GUIA_MUDA = { decir: async () => {}, callar() {}, apagar() {} };
 const RECORDATORIOS = ['oidos-solo', 'oidos-solo-2'];
 // Las dos cosas a la vez: rapido (si espera, la respuesta llega tarde y cuenta como "no oyo") y
 // solo si lo oye (contra la trampa). Antes solo decia lo segundo y la gente dudaba.
+// Respuesta de revisarVolumen cuando el tono de referencia nunca sono y el paciente prefirio seguir
+const SIN_SONIDO = Symbol('sin-sonido');
+const NO_OYO_PARA_SALIR = 2;     // "No oí nada" antes de ofrecer seguir sin la prueba
+// iPhone/iPad sin navigator.audioSession (iOS < 16.4, y a veces Chrome iOS o el navegador de
+// WhatsApp): el interruptor de silencio calla Web Audio (los tonos) pero no la voz (<audio>). Asi se
+// quedo atascada una paciente con iOS 16.1 (2-nov-2026). El iPad se presenta como Mac con pantalla tactil.
+const IPHONE_SIN_SESION = (/iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) && !navigator.audioSession;
 const SOLO_SI_OYES = 'Toca apenas oigas el pitido, y solo si lo oyes.';
 // Practica antes de medir: tonos fuertes por los dos oidos, para que aprenda el ritmo
 const PRACTICA_TONOS = 3;
@@ -233,8 +242,17 @@ async function correr(p, ui, salida, t0) {
         console.warn('[oidos] Sin microfono:', e.name);
     }
     const ruido = mic ? await revisarRuido(p, mic) : null;
+    if (IPHONE_SIN_SESION) {
+        p.paso('Apaga el modo silencio', 'Es el interruptor del costado del iPhone, encima de los botones de volumen.');
+        const listo = p.opciones([{ valor: true, etiqueta: 'Listo', primario: true }]);
+        p.decir('oidos-iphone-silencio');
+        await listo;
+    }
     const parlante = await revisarVolumen(p, salida, perfil, mic);
     if (mic) mic.cerrar();
+    if (parlante === SIN_SONIDO) {
+        return { realizado: false, motivo: 'No sonó el tono de referencia (volumen, audífonos o modo silencio).', version: VERSION };
+    }
     modoReproduccion();
     await dormir(A2DP_MS);
 
@@ -309,6 +327,7 @@ async function revisarRuido(p, mic) {
 async function revisarVolumen(p, salida, perfil, mic) {
     const dbfs = aDbfs(REFERENCIA_HL, 1000, perfil);
     let parlante = null;
+    let noOyo = 0;
     for (;;) {
         p.paso('Sube el volumen al máximo', 'Hasta el tope, con los audífonos puestos.');
         const listo = p.opciones([{ valor: true, etiqueta: 'Ya lo subí', primario: true }]);
@@ -351,6 +370,19 @@ async function revisarVolumen(p, salida, perfil, mic) {
         const oyo = await r;
         if (oyo === 'si') return parlante;
         if (oyo === 'no') {
+            noOyo++;
+            reportar('oidos', null, `no sonó el tono de referencia (${noOyo})`);
+            // Antes no habia salida: si el tono nunca sonaba, el paciente quedaba aqui para siempre
+            if (noOyo >= NO_OYO_PARA_SALIR) {
+                p.paso('No logramos que suene', 'Puedes probar otra vez o seguir con la prueba de los ojos.');
+                const r2 = p.opciones([
+                    { valor: true, etiqueta: 'Probar otra vez', primario: true },
+                    { valor: false, etiqueta: 'Seguir sin la prueba de oídos' },
+                ]);
+                p.decir('oidos-no-suena');
+                if (!(await r2)) return SIN_SONIDO;
+                continue;
+            }
             p.paso('No sonó', 'Volumen al tope, audífonos conectados y, en iPhone, el modo silencio apagado.');
             const otra = p.opciones([{ valor: true, etiqueta: 'Probar otra vez', primario: true }]);
             p.decir('oidos-no-sono');

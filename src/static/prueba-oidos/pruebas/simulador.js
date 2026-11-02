@@ -13,6 +13,8 @@
 // Modos (window.__simulador, antes de cargar la pagina):
 //   tocarAlAzar: toques/s al azar sobre el orbe, oiga o no (el tramposo)
 //   ausente: [desde, hasta] en ms desde el primer tono de la prueba: ni responde ni toca botones
+//   mudo: el tono de referencia nunca le suena (iPhone viejo en silencio): contesta "No oí nada"
+//         y, cuando se lo ofrecen, sigue sin la prueba
 //   lento: ms de mas en cada respuesta (Bluetooth + reaccion lenta; la paciente del 1-nov-2026
 //          respondia hacia 1,2-2 s desde el inicio del tono)
 // Lo que hizo queda en window.__simStats.
@@ -130,6 +132,10 @@
         } else if (caja.dataset.tipo === 'lados') {
             botones.find((b) => b.dataset.valor === ultimoOido)?.click();
         } else {
+            if (MODO.mudo) {
+                const b = botones.find((x) => x.dataset.valor === 'no' || x.dataset.valor === 'false');
+                if (b) { b.click(); return; }
+            }
             for (const v of PREFERIDOS) {
                 const b = botones.find((x) => x.dataset.valor === v);
                 if (b) { b.click(); return; }

@@ -272,7 +272,7 @@ def guardar_evidencia(_id, data, resumen, turnos):
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))
     if _id and prueba is not None:
         guardar_prueba_ojos(_id, prueba)
-    # La audiometria de las ordenes de NUBIA: la plataforma ya no la pide, la hace el asistente
+    # Sin la audiometria de la plataforma, la del asistente queda en audiometrias
     if _id:
         guardar_audiometria(_id, grabacion.limpiar_oidos(data.get('oidos')))
     return carpeta

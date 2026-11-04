@@ -149,9 +149,9 @@ def guardar_prueba_ojos(_id, prueba):
         return {"success": False, "error": str(e)}
 
 
-# Prueba de oidos -> tabla audiometrias de BSL-PLATAFORMA2. Para las ordenes de NUBIA la plataforma
-# ya no pide su audiometria virtual (capas/reglas/pruebas-requeridas.js, QUITA_SI_MEDICO_BOT): esta
-# fila es la que leen el certificado, la historia clinica en PDF y el informe por empresa.
+# Prueba de oidos -> tabla audiometrias de BSL-PLATAFORMA2 (la leen el certificado, la historia clinica
+# en PDF y el informe por empresa). La que cuenta es la de la plataforma: si ya esta, el paciente no
+# hace esta (tiene_audiometria_plataforma) y si llega a guardarse no la pisa.
 EQUIPO_ASISTENTE = 'Asistente virtual BSL'
 FRECUENCIAS_AUDIOMETRIA = ('500', '1000', '2000', '3000', '4000', '6000')
 TECHO_OIDOS_HL = 70

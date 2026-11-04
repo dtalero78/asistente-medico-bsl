@@ -112,7 +112,8 @@ async function iniciar() {
         return;
     }
 
-    if (_id && await linkUsado()) {
+    const orden = _id ? await consultarOrden() : {};
+    if (orden.usado) {
         salidaOidos.cerrar().catch(() => {});
         reportar('link', null, 'link ya usado');
         vc.dataset.estado = 'fin';
@@ -127,10 +128,17 @@ async function iniciar() {
         return;
     }
 
-    vc.dataset.estado = 'oidos';
     mantenerPantallaEncendida();
-    oidos = await examenOidos(oidosUI, salidaOidos);
-    if (!oidos.realizado) {
+    if (orden.audiometriaHecha) {
+        // Ya hizo la audiometria de la plataforma: no la repite aqui (Daniel, 4-nov-2026). La de
+        // ojos si va siempre: no reemplaza la visiometria de la plataforma.
+        salidaOidos.cerrar().catch(() => {});
+        oidos = { realizado: false, motivo: 'Ya tiene la audiometría de la plataforma.', yaHecha: true };
+    } else {
+        vc.dataset.estado = 'oidos';
+        oidos = await examenOidos(oidosUI, salidaOidos);
+    }
+    if (!oidos.realizado && !oidos.yaHecha) {
         console.warn('[avatar] Prueba de oidos no realizada:', oidos.motivo);
         reportar('oidos', null, `no realizada: ${oidos.motivo}`);
     }
@@ -155,12 +163,16 @@ async function pedirPermisos() {
     }
 }
 
-async function linkUsado() {
+// Lo que hay que saber de la orden antes de las pruebas: si el link ya se uso y si el paciente ya
+// hizo la audiometria de la plataforma
+async function consultarOrden() {
     try {
         const res = await fetch(`/api/paciente?_id=${encodeURIComponent(_id)}`);
-        return res.status === 403;
+        if (res.status === 403) return { usado: true };
+        const datos = await res.json().catch(() => ({}));
+        return { usado: false, audiometriaHecha: !!datos.audiometriaHecha };
     } catch {
-        return false;   // si no se puede saber, lo dice /avatar/session al conectar
+        return { usado: false };   // si no se puede saber, lo dice /avatar/session al conectar
     }
 }
 

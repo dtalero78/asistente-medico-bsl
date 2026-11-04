@@ -16,7 +16,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 logger.info("Flask iniciado correctamente")
 
-from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria
+from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria, tiene_audiometria_plataforma
 from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
@@ -59,7 +59,8 @@ def get_paciente():
             if result.get('celular'):
                 return jsonify({
                     'error': 'Paciente no encontrado en formularios',
-                    'celular': result['celular']
+                    'celular': result['celular'],
+                    'audiometriaHecha': tiene_audiometria_plataforma(_id)
                 }), 404
             else:
                 return jsonify({'error': 'Paciente no encontrado'}), 404
@@ -68,7 +69,9 @@ def get_paciente():
             'primerNombre': result['primerNombre'],
             'celular': result['celular'],
             'encuestaSalud': result['encuestaSalud'],
-            'antecedentesFamiliares': result['antecedentesFamiliares']
+            'antecedentesFamiliares': result['antecedentesFamiliares'],
+            # Ya hizo la audiometria de la plataforma: avatar.js se salta la prueba de oidos
+            'audiometriaHecha': tiene_audiometria_plataforma(_id)
         })
 
     except Exception as e:
@@ -269,7 +272,7 @@ def guardar_evidencia(_id, data, resumen, turnos):
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))
     if _id and prueba is not None:
         guardar_prueba_ojos(_id, prueba)
-    # La audiometria de las ordenes de NUBIA: la plataforma ya no la pide, la hace el asistente
+    # Sin la audiometria de la plataforma, la del asistente queda en audiometrias
     if _id:
         guardar_audiometria(_id, grabacion.limpiar_oidos(data.get('oidos')))
     return carpeta

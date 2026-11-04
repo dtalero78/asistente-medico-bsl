@@ -145,9 +145,11 @@ oído. Reemplazo propuesto de `audiometria-virtual.html` de PLATAFORMA2.
 - **Va a `audiometrias` de PLATAFORMA2** (`patient.guardar_audiometria`, desde `app.guardar_evidencia`,
   aunque la entrevista se corte): umbrales en `aereo_*` (500-6000; «no oye» = 70), grado en
   `diagnostico_*`, veredicto y confiabilidad en `interpretacion`, `equipo = 'Asistente virtual BSL'`.
-  Es la fila que leen el certificado, el PDF y el informe por empresa: **para las órdenes de NUBIA la
-  plataforma ya no pide su audiometría virtual** (`QUITA_SI_MEDICO_BOT` en PLATAFORMA2). Si la orden ya
-  tiene una audiometría de la plataforma no la toca; un reintento actualiza la del asistente. Sin
+  Es la fila que leen el certificado, el PDF y el informe por empresa. **La que cuenta es la
+  audiometría normal de la plataforma** (Daniel, 4-nov-2026: PLATAFORMA2 la vuelve a pedir a las órdenes
+  de NUBIA). Si la orden ya la tiene, `/api/paciente` trae `audiometriaHecha` y el paciente **no repite
+  la prueba de oídos** (`tiene_audiometria_plataforma`; la de ojos sí va siempre). Si de todos modos
+  llega a guardar, no toca la de la plataforma; un reintento actualiza la del asistente. Sin
   prueba de oídos (sin audífonos) no hay fila. La visiometría de la plataforma sigue: la de ojos no
   mide agudeza ni colores.
 - El paciente ve audiograma y veredicto bajo el resumen (`pintarResultadosOidos`).

@@ -145,39 +145,30 @@ Si tienes alguna duda, no dudes en contactarnos.
                 'message': 'Link de formulario enviado correctamente'
             }, 200
 
-        # Flujo normal: Usuario con formulario completado
-        send_summary_email(message)
-
-        to = data.get('to')
-        if not to:
-            logger.error("No se proporciono numero de WhatsApp del paciente")
-        else:
-            template_resumen = os.getenv('TWILIO_TEMPLATE_RESUMEN_ENTREVISTA')
-            if template_resumen:
-                resumen_contenido = message
-                if resumen_contenido.lower().lstrip().startswith('resumen de la entrevista'):
-                    partes = resumen_contenido.split('\n', 1)
-                    resumen_contenido = partes[1].strip() if len(partes) > 1 else resumen_contenido
-                # Twilio content variables NO admiten newlines, tabs, ni >4 espacios (error 21656)
-                resumen_contenido = resumen_contenido.replace('\t', ' ').strip()
-                resumen_contenido = resumen_contenido.replace('\n', ' • ')
-                while '    ' in resumen_contenido:
-                    resumen_contenido = resumen_contenido.replace('    ', ' ')
-                resumen_contenido = resumen_contenido[:900]
-                resultado_template = send_template_message(to, template_resumen, {"1": nombre, "2": resumen_contenido})
-                if resultado_template.get('success'):
-                    logger.info("Resumen enviado por WhatsApp (template) OK")
-                else:
-                    logger.error("Fallo template resumen, usando free-text: %s", resultado_template.get('error'))
-                    send_text_message(to, message)
-            else:
-                send_text_message(to, message)
-                logger.info("Resumen enviado por WhatsApp (free-text fallback)")
-            enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id, indicadores_ojos)
-
+        # Flujo normal: Usuario con formulario completado.
+        # El resumen va a la BD PRIMERO: es lo que cierra la consulta (NUBIA marca ATENDIDO cuando
+        # resumenLlamada no esta vacio). Antes iba de ultimo, detras del correo, y el 4-nov-2026 el
+        # SMTP se colgo y tres pacientes con la entrevista completa quedaron PENDIENTE.
         if _id:
             resultado_pg = guardar_resumen(_id, message)
             logger.info("Resultado al guardar en PostgreSQL: %s", resultado_pg)
+            if not resultado_pg.get('success'):
+                # Sin resumen guardado el link sigue sirviendo y el paciente reintenta: no se
+                # despacha nada para no mandarle el WhatsApp dos veces.
+                return {'error': 'No se pudo guardar el resumen'}, 500
+
+        # Correo y WhatsApp son avisos: si fallan, queda en el log y la consulta sigue cerrada.
+        try:
+            send_summary_email(message)
+        except Exception as e:
+            logger.error("No se pudo enviar el correo del resumen de %s: %s", _id, e)
+
+        to = data.get('to')
+        try:
+            enviar_resumen_whatsapp(to, message, nombre, encuesta_salud, antecedentes_familiares,
+                                    _id, indicadores_ojos)
+        except Exception as e:
+            logger.error("No se pudo enviar el WhatsApp del resumen de %s: %s", _id, e)
 
         logger.info("Envio completo: email, WhatsApp (resumen + sugerencias), y PostgreSQL")
         return {
@@ -188,6 +179,36 @@ Si tienes alguna duda, no dudes en contactarnos.
     except Exception as e:
         logger.error("Error en /send-email: %s", str(e))
         return {'error': f"Email error: {str(e)}"}, 500
+
+
+def enviar_resumen_whatsapp(to, message, nombre, encuesta_salud, antecedentes_familiares, _id,
+                            indicadores_ojos):
+    """Resumen (plantilla, o texto libre si no hay plantilla o falla) + sugerencias por WhatsApp."""
+    if not to:
+        logger.error("No se proporciono numero de WhatsApp del paciente")
+    else:
+        template_resumen = os.getenv('TWILIO_TEMPLATE_RESUMEN_ENTREVISTA')
+        if template_resumen:
+            resumen_contenido = message
+            if resumen_contenido.lower().lstrip().startswith('resumen de la entrevista'):
+                partes = resumen_contenido.split('\n', 1)
+                resumen_contenido = partes[1].strip() if len(partes) > 1 else resumen_contenido
+            # Twilio content variables NO admiten newlines, tabs, ni >4 espacios (error 21656)
+            resumen_contenido = resumen_contenido.replace('\t', ' ').strip()
+            resumen_contenido = resumen_contenido.replace('\n', ' • ')
+            while '    ' in resumen_contenido:
+                resumen_contenido = resumen_contenido.replace('    ', ' ')
+            resumen_contenido = resumen_contenido[:900]
+            resultado_template = send_template_message(to, template_resumen, {"1": nombre, "2": resumen_contenido})
+            if resultado_template.get('success'):
+                logger.info("Resumen enviado por WhatsApp (template) OK")
+            else:
+                logger.error("Fallo template resumen, usando free-text: %s", resultado_template.get('error'))
+                send_text_message(to, message)
+        else:
+            send_text_message(to, message)
+            logger.info("Resumen enviado por WhatsApp (free-text fallback)")
+        enviar_sugerencias_whatsapp(to, nombre, encuesta_salud, antecedentes_familiares, _id, indicadores_ojos)
 
 
 # --- Avatar en video (LiveAvatar). Ver services/avatar.py ---

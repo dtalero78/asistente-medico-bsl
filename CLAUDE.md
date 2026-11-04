@@ -91,6 +91,8 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - Sin `_id` en la URL usa un paciente demo y NO despacha nada (ni correo, ni WhatsApp, ni BD).
   Para probar solo el agente: `/avatar?solo=entrevista` (sin pruebas de oídos ni ojos; solo en el demo).
 - No hay tool `sendEmail`: el resumen sale de la transcripción con gpt-4o-mini al terminar.
+- `despachar_resumen` guarda `resumenLlamada` en la BD **antes** de correo y WhatsApp; si estos fallan
+  solo queda en el log. El 4-nov-2026 el SMTP se colgó, iba primero, y 3 entrevistas completas quedaron PENDIENTE.
 - Entrevista incompleta (sin la despedida o con menos de 4 respuestas, `avatar.entrevista_completa`):
   no hay resumen ni WhatsApp, el link sigue sirviendo (se gasta al guardar `resumenLlamada`) y el
   paciente ve «Intentar de nuevo». Así NUBIA no la marca ATENDIDO. La evidencia sí va a Spaces.

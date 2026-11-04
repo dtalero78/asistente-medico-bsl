@@ -89,6 +89,7 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - `AVATAR_EN_INICIO=1` hace que `/` (el link de NUBIA, plantilla `recordatorio_cita`) muestre el
   avatar; la voz queda siempre en `/voz`. `LIVEAVATAR_SANDBOX=1` = avatar Wayne, 1 min, gratis.
 - Sin `_id` en la URL usa un paciente demo y NO despacha nada (ni correo, ni WhatsApp, ni BD).
+  Para probar solo el agente: `/avatar?solo=entrevista` (sin pruebas de oídos ni ojos; solo en el demo).
 - No hay tool `sendEmail`: el resumen sale de la transcripción con gpt-4o-mini al terminar.
 - Entrevista incompleta (sin la despedida o con menos de 4 respuestas, `avatar.entrevista_completa`):
   no hay resumen ni WhatsApp, el link sigue sirviendo (se gasta al guardar `resumenLlamada`) y el

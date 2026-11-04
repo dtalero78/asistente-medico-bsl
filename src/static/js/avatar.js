@@ -61,6 +61,9 @@ const DATA_TOPIC = 'agent-response';
 
 const params = new URLSearchParams(window.location.search);
 const _id = params.get('_id') || params.get('ref');
+// /avatar?solo=entrevista: directo al medico, sin pruebas de oidos ni ojos. Solo en el demo (sin
+// _id, no despacha nada), para probar el agente: un paciente real no se puede saltar las pruebas.
+const SOLO_ENTREVISTA = !_id && params.get('solo') === 'entrevista';
 
 let room = null;
 let camara = null;
@@ -114,6 +117,13 @@ async function iniciar() {
         reportar('link', null, 'link ya usado');
         vc.dataset.estado = 'fin';
         callStatus.textContent = 'Esta consulta ya fue realizada';
+        return;
+    }
+
+    if (SOLO_ENTREVISTA) {
+        salidaOidos.cerrar().catch(() => {});
+        mantenerPantallaEncendida();
+        await startCall();   // sin pasarAlMedico: su voz dice "terminamos la prueba de ojos"
         return;
     }
 

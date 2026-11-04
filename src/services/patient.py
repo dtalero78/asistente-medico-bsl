@@ -215,6 +215,24 @@ def fila_audiometria(meta):
     return fila
 
 
+def tiene_audiometria_plataforma(_id):
+    """True si la orden ya tiene una audiometria hecha en la plataforma (virtual o por un
+    profesional): el paciente no repite la prueba de oidos con el asistente (Daniel, 4-nov-2026).
+    La que escribio el propio asistente no cuenta. Si la BD falla, False: mejor repetirla que saltarla."""
+    if not _id:
+        return False
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM audiometrias WHERE orden_id = %s AND tenant_id = 'bsl' "
+                    "AND deleted_at IS NULL AND equipo IS DISTINCT FROM %s LIMIT 1", (_id, EQUIPO_ASISTENTE))
+                return cur.fetchone() is not None
+    except Exception as e:
+        logger.error("No se pudo revisar la audiometria de %s: %s", _id, str(e))
+        return False
+
+
 def guardar_audiometria(_id, meta):
     """Escribe la prueba de oidos en audiometrias. Si la orden ya tiene una audiometria hecha en la
     plataforma (virtual o por un profesional), no la toca: solo actualiza la que escribio el

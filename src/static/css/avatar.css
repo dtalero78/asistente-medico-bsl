@@ -353,6 +353,9 @@ body.avatar-page {
 }
 .vc-resumen .vc-reintentar:hover { background: #2a71ff; }
 .vc-resumen .vc-reintentar:focus-visible { outline: 3px solid #8fb6ff; outline-offset: 3px; }
+/* «Hacer mis pruebas ahora» es un enlace con la forma del boton */
+.vc-resumen a.vc-reintentar { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.vc-resumen a.vc-reintentar[hidden] { display: none; }
 
 .vc-audio {
     background: #fff;

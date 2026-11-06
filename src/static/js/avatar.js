@@ -24,6 +24,7 @@ const resumenBox = document.getElementById('resumen');
 const ojosResultados = document.getElementById('ojosResultados');
 const oidosResultados = document.getElementById('oidosResultados');
 const cerrarAviso = document.getElementById('cerrarAviso');
+const pruebasBtn = document.getElementById('pruebasBtn');
 const reintentarBtn = document.getElementById('reintentarBtn');
 const audioBtn = document.getElementById('audioBtn');
 const consentimiento = document.getElementById('consentimiento');
@@ -57,6 +58,8 @@ const oidosUI = {
 
 // Debe coincidir con FRASE_CIERRE en services/avatar.py
 const FRASE_CIERRE = 'estoy generando tu resumen';
+// Y con FRASE_CIERRE_PENDIENTE: sin formulario, el saludo termina con ella
+const FRASE_CIERRE_PENDIENTE = 'vuelve a entrar con este mismo link';
 const DATA_TOPIC = 'agent-response';
 
 const params = new URLSearchParams(window.location.search);
@@ -121,7 +124,10 @@ async function iniciar() {
         return;
     }
 
-    if (SOLO_ENTREVISTA) {
+    // Sin formulario no hay pruebas de oidos ni ojos: el asistente le dice de una vez que primero
+    // complete sus pruebas y que vuelva con este mismo link. Antes hacia 13 minutos de pruebas y
+    // solo al final se enteraba (Jonathan y Henry, 5-nov-2026).
+    if (SOLO_ENTREVISTA || orden.formularioPendiente) {
         salidaOidos.cerrar().catch(() => {});
         mantenerPantallaEncendida();
         await startCall();   // sin pasarAlMedico: su voz dice "terminamos la prueba de ojos"
@@ -170,7 +176,8 @@ async function consultarOrden() {
         const res = await fetch(`/api/paciente?_id=${encodeURIComponent(_id)}`);
         if (res.status === 403) return { usado: true };
         const datos = await res.json().catch(() => ({}));
-        return { usado: false, audiometriaHecha: !!datos.audiometriaHecha };
+        // 404: no ha llenado el formulario (las "pruebas" de bsl-plataforma.com)
+        return { usado: false, formularioPendiente: res.status === 404, audiometriaHecha: !!datos.audiometriaHecha };
     } catch {
         return { usado: false };   // si no se puede saber, lo dice /avatar/session al conectar
     }
@@ -357,7 +364,8 @@ function onData(payload, _participant, _kind, topic) {
         transcript.push({ role: 'user', text: msg.text });
     } else if (msg.event_type === 'avatar.transcription' && msg.text) {
         transcript.push({ role: 'assistant', text: msg.text });
-        if (msg.text.toLowerCase().includes(FRASE_CIERRE)) cerrando = true;
+        const texto = msg.text.toLowerCase();
+        if (texto.includes(FRASE_CIERRE) || texto.includes(FRASE_CIERRE_PENDIENTE)) cerrando = true;
     } else if (msg.event_type === 'avatar.speak_started') {
         avatarHablando();
     } else if (msg.event_type === 'avatar.speak_ended') {
@@ -415,6 +423,16 @@ async function finishCall(motivo) {
             document.getElementById('resumenTitulo').textContent = 'La llamada se cortó';
             resumenBox.textContent = 'No alcanzamos a terminar la entrevista. Busca un lugar con buena señal, revisa que el micrófono esté activo y vuelve a intentarlo.';
             reintentarBtn.hidden = false;
+            resumenCard.hidden = false;
+            return;
+        }
+
+        if (data.formularioPendiente) {
+            callStatus.textContent = 'Primero completa tus pruebas';
+            document.getElementById('resumenTitulo').textContent = 'Primero completa tus pruebas';
+            resumenBox.textContent = 'Te enviamos el link por WhatsApp. Cuando termines tus pruebas, vuelve a entrar a la consulta con el link que te llega por WhatsApp.';
+            pruebasBtn.href = data.linkPruebas;
+            pruebasBtn.hidden = false;
             resumenCard.hidden = false;
             return;
         }

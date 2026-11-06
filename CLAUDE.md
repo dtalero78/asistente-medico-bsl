@@ -96,6 +96,12 @@ Videollamada con un médico virtual: LiveAvatar (HeyGen) pone el video y un agen
 - Entrevista incompleta (sin la despedida o con menos de 4 respuestas, `avatar.entrevista_completa`):
   no hay resumen ni WhatsApp, el link sigue sirviendo (se gasta al guardar `resumenLlamada`) y el
   paciente ve «Intentar de nuevo». Así NUBIA no la marca ATENDIDO. La evidencia sí va a Spaces.
+- **Sin formulario** (`/api/paciente` → 404): no hay pruebas de oídos ni ojos. El saludo
+  (`{{apertura}}`, `avatar.APERTURA_SIN_FORMULARIO`) le dice que complete sus pruebas, que el link
+  le llega por WhatsApp y que vuelva con este mismo link; termina en `FRASE_CIERRE_PENDIENTE` y la
+  llamada se cierra sola. La pantalla trae «Hacer mis pruebas ahora». Al guardar el formulario,
+  PLATAFORMA2 le reenvía el link de la consulta (`reenviarLinkConsultaTrasFormulario`). Antes hacía
+  13 min de pruebas y se enteraba al final (5-nov-2026).
 - El paso de la empresa llega armado en `{{pregunta_empresa}}` (`avatar.pregunta_empresa`): confirma la de la orden; si es PARTICULAR, la pregunta.
 - Evidencia: `entrevistas-avatar/<_id>/<fecha>_<ref>/` en Spaces (privado). La ficha de
   BSL-PLATAFORMA2 la muestra con «Ver entrevista». ElevenLabs retiene el audio 30 días.

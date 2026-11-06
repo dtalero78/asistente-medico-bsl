@@ -331,6 +331,12 @@ def avatar_end():
             'indicadoresOjos': ojos.get('indicadores') if ojos.get('realizado') else None,
         })
         body['resumen'] = resumen
+        if paciente is None:
+            # La pantalla le ofrece el formulario ahi mismo, ademas del WhatsApp. Siempre 200: sin
+            # celular el WhatsApp falla (400) y el paciente se quedaba sin el boton
+            body['formularioPendiente'] = True
+            body['linkPruebas'] = f"https://bsl-plataforma.com/?_id={_id}"
+            return jsonify(body), 200
         return jsonify(body), status
     except Exception as e:
         logger.error("Error en /avatar/end: %s", str(e))

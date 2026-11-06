@@ -21,6 +21,13 @@ FRASE_CIERRE = "estoy generando tu resumen"
 # con 4 se toleran respuestas que el paciente junta en un solo turno
 MIN_RESPUESTAS = 4
 RESUMEN_INCOMPLETA = "Entrevista incompleta: la llamada se corto antes de terminar. No se genero resumen."
+# Sin formulario el asistente lo dice todo en el saludo y cuelga apenas termina esta frase
+# (static/js/avatar.js la busca igual que FRASE_CIERRE)
+FRASE_CIERRE_PENDIENTE = "vuelve a entrar con este mismo link"
+APERTURA_ENTREVISTA = "¿Tienes un minuto para unas preguntas rápidas antes de tu examen?"
+APERTURA_SIN_FORMULARIO = ("Antes de la consulta necesitas completar tus pruebas de salud ocupacional. "
+                           "Te envío ya el link por WhatsApp y también lo tienes en esta pantalla. "
+                           f"Cuando termines tus pruebas, {FRASE_CIERRE_PENDIENTE}.")
 
 PACIENTE_DEMO = {
     'primerNombre': 'Carlos',
@@ -124,14 +131,17 @@ def entrevista_completa(turnos):
 
 def variables_agente(paciente, nombre=None):
     """Valores de {{...}} del prompt del agente de ElevenLabs (scripts/agente-avatar/prompt.md).
-    Sin formulario (paciente None) el nombre viene de la orden."""
+    Sin formulario (paciente None) el nombre viene de la orden. `apertura` va en el saludo
+    (first_message): sin formulario es todo lo que el paciente necesita oir."""
     if paciente is None:
         return {'nombre': (nombre or '').strip() or 'paciente', 'formulario_completo': 'no',
+                'apertura': APERTURA_SIN_FORMULARIO,
                 'historial_salud': 'ninguno', 'antecedentes_familiares': 'ninguno',
                 'pregunta_empresa': pregunta_empresa(None)}
     return {
         'nombre': (paciente.get('primerNombre') or '').strip(),
         'formulario_completo': 'si',
+        'apertura': APERTURA_ENTREVISTA,
         'historial_salud': ", ".join(paciente.get('encuestaSalud') or []) or 'ninguno',
         'antecedentes_familiares': ", ".join(paciente.get('antecedentesFamiliares') or []) or 'ninguno',
         'pregunta_empresa': pregunta_empresa(paciente),

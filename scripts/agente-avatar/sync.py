@@ -29,7 +29,8 @@ config = {
     'conversation_config': {
         'agent': {
             'language': 'es',
-            'first_message': 'Hola {{nombre}}, soy el asistente virtual de BSL. ¿Tienes un minuto para unas preguntas rápidas antes de tu examen?',
+            # {{apertura}}: la pregunta de si tiene un minuto, o sin formulario todo el aviso (avatar.variables_agente)
+            'first_message': 'Hola {{nombre}}, soy el asistente virtual de BSL. {{apertura}}',
             'dynamic_variables': {
                 'dynamic_variable_placeholders': {
                     'nombre': 'Carlos',
@@ -38,6 +39,7 @@ config = {
                     'antecedentes_familiares': 'Hipertension',
                     # El paso de la empresa ya armado (avatar.pregunta_empresa)
                     'pregunta_empresa': 'Pregunta para qué empresa solicita el certificado médico.',
+                    'apertura': '¿Tienes un minuto para unas preguntas rápidas antes de tu examen?',
                     # Codigo de la sesion (no lo usa el prompt): con el se encuentra el audio
                     # de cada entrevista en src/services/grabacion.py
                     'ref_bsl': 'demo',

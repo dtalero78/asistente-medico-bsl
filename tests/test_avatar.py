@@ -9,7 +9,8 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 os.environ.setdefault('OPENAI_API_KEY', 'test')
 
-from services.avatar import entrevista_completa, empresa_de_la_orden, pregunta_empresa  # noqa: E402
+from services.avatar import (entrevista_completa, empresa_de_la_orden, pregunta_empresa,  # noqa: E402
+                             variables_agente, FRASE_CIERRE_PENDIENTE)
 
 CIERRE = {'role': 'assistant', 'text': 'Gracias por tu tiempo, estoy generando tu resumen. No cierres esta ventana.'}
 
@@ -63,6 +64,30 @@ class TestEmpresaDeLaOrden(unittest.TestCase):
 
     def test_pregunta_con_empresa_la_confirma(self):
         self.assertIn('¿El certificado es para WELTNEU CO?', pregunta_empresa({'empresa': 'WELTNEU CO'}))
+
+
+
+class TestSinFormulario(unittest.TestCase):
+
+    def test_el_saludo_lo_dice_todo_y_cierra(self):
+        v = variables_agente(None, 'Henry')
+        self.assertEqual(v['formulario_completo'], 'no')
+        self.assertIn('completar tus pruebas', v['apertura'])
+        self.assertTrue(v['apertura'].rstrip('.').endswith(FRASE_CIERRE_PENDIENTE))
+
+    def test_con_formulario_pregunta_si_tiene_un_minuto(self):
+        v = variables_agente({'primerNombre': 'Ana', 'encuestaSalud': [], 'antecedentesFamiliares': []})
+        self.assertIn('¿Tienes un minuto', v['apertura'])
+        self.assertNotIn(FRASE_CIERRE_PENDIENTE, v['apertura'])
+
+    def test_la_frase_es_la_misma_en_el_navegador(self):
+        js = open(os.path.join(os.path.dirname(__file__), '..', 'src', 'static', 'js', 'avatar.js'), encoding='utf-8').read()
+        self.assertIn(f"const FRASE_CIERRE_PENDIENTE = '{FRASE_CIERRE_PENDIENTE}';", js)
+
+    def test_el_agente_usa_la_apertura(self):
+        sync = open(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'agente-avatar', 'sync.py'), encoding='utf-8').read()
+        self.assertIn('{{apertura}}', sync)
+        self.assertIn("'apertura':", sync)
 
 
 if __name__ == '__main__':

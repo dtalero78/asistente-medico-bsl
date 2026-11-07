@@ -1,10 +1,12 @@
-// Página de prueba de la prueba visual: la corre sola y muestra el resultado. No guarda nada.
+// Página de prueba: la prueba visual y, enseguida, la pupilometría (como quedará en la
+// visiometría), con los dos resultados al final. No guarda nada.
 import { crearGuia, CLIPS_VISTA } from '../js/guia-voz.js';
-import { precargarModelo } from '../js/ojos.js';
+import { precargarModelo, montarPruebaOjos, examenOjos, pintarResultados } from '../js/ojos.js';
 import { montarVista, examenVista } from '../js/vista.js';
 
 const guia = crearGuia();
 guia.precargar(CLIPS_VISTA);
+guia.precargar();   // los de la pupilometría
 precargarModelo().catch((e) => console.warn('[demo] sin modelo', e));
 
 const $ = (id) => document.getElementById(id);
@@ -14,6 +16,7 @@ $('empezar').addEventListener('click', async () => {
     $('empezar').disabled = true;
     const ui = montarVista(document.body);
     ui.guia = guia;
+    ui.liberarModelo = false;   // la pupilometría reutiliza el detector
     let r;
     for (;;) {
         try {
@@ -32,7 +35,33 @@ $('empezar').addEventListener('click', async () => {
         }
     }
     ui.quitar();
+
+    // Pupilometría, sin volver a tocar nada (el audio ya quedó desbloqueado en el toque)
+    const uo = montarPruebaOjos(document.body);
+    uo.guia = guia;
+    let ro;
+    for (;;) {
+        try {
+            ro = await examenOjos(uo);
+            break;
+        } catch (error) {   // solo si niega la cámara
+            uo.titulo.textContent = 'Necesitamos tu cámara';
+            uo.indicacion.textContent = 'Permite la cámara y toca el botón.';
+            uo.reintentar.hidden = false;
+            await new Promise((ok) => { uo.reintentar.onclick = ok; });
+            uo.reintentar.hidden = true;
+        }
+    }
+    if (ro.realizado) await guia.decir('fin-visio');
+    uo.quitar();
+
     pintar(r);
+    const caja = $('resultado-ojos');
+    pintarResultados(caja, ro);
+    if (!ro.realizado) {
+        caja.hidden = false;
+        caja.replaceChildren(Object.assign(document.createElement('h3'), { textContent: `Pupilometría no realizada: ${ro.motivo}` }));
+    }
     $('empezar').disabled = false;
 });
 

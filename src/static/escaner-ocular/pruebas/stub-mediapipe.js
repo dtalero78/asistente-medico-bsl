@@ -15,7 +15,9 @@ export const GEOM = {
 window.__stub = {
   present: true,
   earScale: 1,      // 1 = ojo abierto; 0 = cerrado del todo
-  earOjo: { OD: 1, OI: 1 },   // por ojo, encima de earScale (para tapar uno solo)
+  earOjo: { OD: 1, OI: 1 },   // por ojo, encima de earScale (para cerrar uno solo)
+  tapar: null,      // 'OD' | 'OI': una mano encima de ese ojo. Solo cambia los PÍXELES: los landmarks
+                    // siguen con el ojo abierto, que es lo que hace MediaPipe real con una palma encima
   irisScale: 1,     // escala el iris para simular acercarse o alejarse
   jitterPx: 0,      // movimiento entre frames
   pupilFrac: 0.42,  // ratio pupila/iris que pinta la cámara falsa
@@ -105,6 +107,14 @@ export function camaraFalsa() {
         g.beginPath(); g.arc(c0.x, c0.y, R, 0, 6.284); g.fill();
         g.fillStyle = "#0a0a0a";
         g.beginPath(); g.arc(c0.x, c0.y, R * s.pupilFrac, 0, 6.284); g.fill();
+      }
+      if (s.tapar && GEOM.centros[s.tapar]) {
+        // La palma: piel lisa con un degradado suave, más grande que el ojo
+        const c0 = GEOM.centros[s.tapar], r = GEOM.eyeHalfW * s.irisScale * 2.2;
+        const grad = g.createRadialGradient(c0.x, c0.y, r * 0.1, c0.x, c0.y, r);
+        grad.addColorStop(0, "#d8a98a"); grad.addColorStop(1, "#bf8f70");
+        g.fillStyle = grad;
+        g.beginPath(); g.ellipse(c0.x, c0.y, r, r * 0.8, 0, 0, 6.284); g.fill();
       }
     }
     requestAnimationFrame(pintar);

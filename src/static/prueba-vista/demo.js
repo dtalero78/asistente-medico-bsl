@@ -44,12 +44,15 @@ function pintar(r) {
     if (!r.realizado) {
         caja.append(el('h2', 'No se completó'), el('p', r.motivo));
     } else {
+        // Cómo se verificó el otro ojo tapado: por la imagen (la palma) o por los párpados (cerrado)
+        const tapado = (o, otro) => (!o.oclusionVerificada ? `ojo ${otro} tapado: NO verificado`
+            : `ojo ${otro} tapado: sí (por ${o.metodoOclusion === 'imagen' ? 'la imagen' : 'los párpados'})${o.destapes ? `, se destapó ${o.destapes} vez/veces` : ''}`);
         const ojo = (o) => (o.snellen ? `${o.snellen}${o.limiteDePantalla ? ' (o mejor: límite de la pantalla)' : ''}` : `peor que ${o.peorQue || '20/200'}`);
         caja.append(el('h2', `Concepto: ${r.concepto}`));
         const ul = document.createElement('ul');
         ul.append(
-            el('li', `Ojo derecho: ${ojo(r.ojos.OD)} · reloj: ${r.ojos.OD.reloj}${r.ojos.OD.oclusionVerificada ? '' : ' · tapado sin verificar'}`),
-            el('li', `Ojo izquierdo: ${ojo(r.ojos.OI)} · reloj: ${r.ojos.OI.reloj}${r.ojos.OI.oclusionVerificada ? '' : ' · tapado sin verificar'}`),
+            el('li', `Ojo derecho: ${ojo(r.ojos.OD)} · reloj: ${r.ojos.OD.reloj} · ${tapado(r.ojos.OD, 'izquierdo')}`),
+            el('li', `Ojo izquierdo: ${ojo(r.ojos.OI)} · reloj: ${r.ojos.OI.reloj} · ${tapado(r.ojos.OI, 'derecho')}`),
             el('li', `Colores: ${r.colores.correctas}/${r.colores.total} (${r.colores.lectura}${r.colores.tipo ? `, ${r.colores.tipo}` : ''})`),
             el('li', `Distancia mediana: ${r.distanciaMedianaMm ? Math.round(r.distanciaMedianaMm / 10) + ' cm' : '—'} · pantalla: ${r.escala.pxPorMm} px/mm (${r.escala.metodo})`),
             el('li', `Duración: ${r.duracion_s} s`),

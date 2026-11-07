@@ -5,7 +5,8 @@
 // Algoritmos sin DOM en static/prueba-vista/src (con su CLAUDE.md y sus pruebas).
 //
 // Se carga desde el dominio del asistente (como ojos.js): nada de rutas absolutas '/static/...'.
-import { sampleOf, EAR_OPEN } from '../escaner-ocular/src/medidas.js';
+import { sampleOf, EAR_OPEN, OD as OJO_OD, OI as OJO_OI, P } from '../escaner-ocular/src/medidas.js';
+import { textura, regionOjo, referencia, estadoOclusion, MUESTRAS_TAPADO } from '../prueba-vista/src/oclusion.js';
 import { precargarModelo, liberarModelo } from './ojos.js';
 import {
     distanciaMm, estadoDistancia, escalaSinCalibrar, niveles, crearEscalera, rectangulosE, distanciaDePrueba,
@@ -13,7 +14,7 @@ import {
 import { LAMINAS, NINGUNO, puntosDeLamina, evaluarColores } from '../prueba-vista/src/colores.js';
 import { concepto, DESTAPES_MAX } from '../prueba-vista/src/resultado.js';
 
-export const VERSION = 'vista-2';
+export const VERSION = 'vista-3';
 
 const DISTANCIA_SOSTENIDA_MS = 1500;   // en la distancia correcta este tiempo antes de seguir
 const CORREGIR_CADA_MS = 4000;         // "acércate / aléjate" no más seguido que esto
@@ -23,6 +24,7 @@ const EAR_TAPADO = 0.15;               // el ojo tapado (o cerrado) baja de aqu�
 const DISTANCIA_RENUNCIA_MS = 30000;   // sin lograr la distancia (o sin cara) este tiempo → sigue igual,
                                        // marcado: con la mano tapando un ojo la cámara puede perder la cara
 const DESTAPADO_ESPERA_MS = 8000;      // antes de cada E, si destapó el otro ojo, se espera esto a que lo tape
+const TEXTURA_CADA = 3;                // la textura de los ojos se mide 1 de cada 3 cuadros (lee píxeles)
 const TECLA_PAUSA_MS = 200;            // teclas ignoradas al aparecer cada pregunta (y las repetidas):
                                        // una flecha mantenida contestaba también la E siguiente
 
@@ -113,7 +115,13 @@ function pantalla(ui, paso, titulo, indicacion = '') {
 // ------------------------------------------------------------------ cámara y detección
 function crearSeguimiento(video, landmarker) {
     let corriendo = true, ultimoTiempo = -1;
-    const estado = { cara: false, distancia: null, ear: { OD: null, OI: null }, distancias: [], errores: 0 };
+    const estado = { cara: false, distancia: null, ear: { OD: null, OI: null }, distancias: [], errores: 0,
+        textura: { OD: null, OI: null }, texturas: [] };
+    // Los píxeles de cada ojo, a media resolución: con la palma encima MediaPipe dibuja el ojo
+    // abierto igual, así que el tapado se reconoce por la imagen (prueba-vista/src/oclusion.js)
+    const lienzo = document.createElement('canvas');
+    const g = lienzo.getContext('2d', { willReadFrequently: true });
+    let cuadros = 0;
     function bucle() {
         if (!corriendo) return;
         // Si el detector falla (GPU perdida, cerrado en otra parte) no puede morir en silencio: antes la
@@ -140,10 +148,28 @@ function crearSeguimiento(video, landmarker) {
                 estado.distancia = distanciaMm(iris, W, H);
                 estado.ear = s.ear;
                 if (estado.distancia) estado.distancias.push(estado.distancia);
+                if (++cuadros % TEXTURA_CADA === 0) medirTexturas(lm, W, H);
             } else {
                 estado.cara = false;
             }
         }
+    }
+    function medirTexturas(lm, W, H) {
+        const escala = 0.5;
+        if (lienzo.width !== Math.round(W * escala)) { lienzo.width = Math.round(W * escala); lienzo.height = Math.round(H * escala); }
+        g.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+        const t = {};
+        for (const [k, ojo] of [['OD', OJO_OD], ['OI', OJO_OI]]) {
+            const r = regionOjo(P(lm, ojo.outer, W, H), P(lm, ojo.inner, W, H), escala);
+            const x = Math.max(0, Math.floor(r.x)), y = Math.max(0, Math.floor(r.y));
+            const w = Math.min(lienzo.width - x, Math.ceil(r.w)), h = Math.min(lienzo.height - y, Math.ceil(r.h));
+            t[k] = w > 4 && h > 4 ? textura(g.getImageData(x, y, w, h), { x: 0, y: 0, w: w - 1, h: h - 1 }) : null;
+        }
+        t.distancia = estado.distancia;   // la referencia usa solo las tomadas a la distancia de la prueba
+        estado.textura = t;
+        estado.nTexturas = (estado.nTexturas || 0) + 1;
+        estado.texturas.push(t);
+        if (estado.texturas.length > 120) estado.texturas.shift();
     }
     requestAnimationFrame(bucle);
     return { estado, parar() { corriendo = false; } };
@@ -302,23 +328,48 @@ async function medirOjo(ui, seg, guia, ojo, lista) {
         'Con la palma de la mano, sin apretarlo. El otro ojo queda abierto.');
     await guia.decir(ojo === 'OD' ? 'vista-tapa-izquierdo' : 'vista-tapa-derecho');
 
-    // Que de verdad esté tapado: el ojo tapado se ve cerrado y el que se mide, abierto
-    let oclusionVerificada = false;
+    // Que de verdad esté tapado. Por la imagen (la palma borra la textura del ojo; los puntos de
+    // MediaPipe lo siguen dibujando abierto) o, si lo cierra en vez de taparlo, por los párpados.
+    let oclusionVerificada = false, metodoOclusion = null, alVerificar = null;
     const inicio = performance.now();
-    let avisado = 0;
+    const nombreTapado = tapado === 'OI' ? 'izquierdo' : 'derecho';
+    // Hacen falta MUESTRAS_TAPADO medidas NUEVAS seguidas (la textura se mide 1 de cada 3 cuadros:
+    // contar tiempo podía aprobar con una sola muestra ruidosa repetida)
+    let avisado = 0, seguidas = 0, ultimaMuestra = seg.estado.nTexturas || 0, ultimoOtro = 0;
     for (;;) {
-        const e = seg.estado;
-        const bien = e.cara && e.ear[tapado] != null && e.ear[tapado] < EAR_TAPADO && e.ear[ojo] >= EAR_OPEN;
-        if (bien) { oclusionVerificada = true; break; }
-        const t = performance.now() - inicio;
+        const e = seg.estado, ahora = performance.now();
+        const porImagen = e.cara ? estadoOclusion(seg.ref, e.textura, tapado) : null;
+        const porParpados = e.cara && e.ear[tapado] != null && e.ear[tapado] < EAR_TAPADO && e.ear[ojo] >= EAR_OPEN;
+        const nueva = (e.nTexturas || 0) !== ultimaMuestra;
+        ultimaMuestra = e.nTexturas || 0;
+        if (porImagen === 'tapado' || porParpados) {
+            if (nueva) seguidas++;
+            if (seguidas >= MUESTRAS_TAPADO) {
+                oclusionVerificada = true;
+                metodoOclusion = porImagen === 'tapado' ? 'imagen' : 'parpados';
+                alVerificar = { textura: { ...e.textura }, ear: { ...e.ear } };
+                break;
+            }
+            ui.estado.textContent = `✓ Ojo ${nombreTapado} tapado`;
+        } else {
+            seguidas = 0;
+            ui.estado.textContent = !e.cara ? 'No vemos tu cara'
+                : porImagen === 'otro' ? `Ese no: tápate el ojo ${nombreTapado}` : `Tápate el ojo ${nombreTapado}`;
+            // Tapó el equivocado (o los dos): se le dice enseguida, no a los 5 s
+            if (porImagen === 'otro' && !guia.hablando && ahora - ultimoOtro > OCLUSION_AVISO_MS) {
+                ultimoOtro = ahora;
+                guia.decir(tapado === 'OI' ? 'vista-otro-ojo-izquierdo' : 'vista-otro-ojo-derecho');
+            }
+        }
+        const t = ahora - inicio;
         if (t > OCLUSION_RENUNCIA_MS) break;
-        if (t > OCLUSION_AVISO_MS * (avisado + 1) && !guia.hablando) {
+        if (t > OCLUSION_AVISO_MS * (avisado + 1) && !guia.hablando && porImagen !== 'otro') {
             avisado++;
             guia.decir(tapado === 'OI' ? 'vista-tapa-bien-izquierdo' : 'vista-tapa-bien-derecho');
         }
-        ui.estado.textContent = !e.cara ? 'No vemos tu cara' : `Tápate el ojo ${tapado === 'OI' ? 'izquierdo' : 'derecho'}`;
         await esperar(150);
     }
+    if (oclusionVerificada) ui.estado.textContent = `✓ Ojo ${nombreTapado} tapado`;
     let distanciaControlada = await esperarDistancia(ui, seg, guia);
 
     // La E
@@ -334,12 +385,18 @@ async function medirOjo(ui, seg, guia, ojo, lista) {
             distanciaControlada = await esperarDistancia(ui, seg, guia);
         }
         // …y con el otro ojo tapado: si se destapó, se le recuerda y se espera un momento
-        if (oclusionVerificada && destapes < DESTAPES_MAX && seg.estado.cara && seg.estado.ear[tapado] >= EAR_OPEN) {
+        // (por el mismo método con que se verificó: con la palma, los párpados siempre se leen abiertos)
+        // Por párpados: si después puso la palma (como se le pidió), MediaPipe lo dibuja abierto; solo
+        // cuenta como destapado si la imagen tampoco lo ve tapado
+        const destapado = () => (metodoOclusion === 'imagen'
+            ? estadoOclusion(seg.ref, seg.estado.textura, tapado) === 'destapado'
+            : seg.estado.ear[tapado] >= EAR_OPEN && estadoOclusion(seg.ref, seg.estado.textura, tapado) !== 'tapado');
+        if (oclusionVerificada && destapes < DESTAPES_MAX && seg.estado.cara && destapado()) {
             destapes++;
             ui.lienzo.replaceChildren();
             guia.decir(tapado === 'OI' ? 'vista-tapa-bien-izquierdo' : 'vista-tapa-bien-derecho');
             const t0 = performance.now();
-            while (seg.estado.ear[tapado] >= EAR_TAPADO && performance.now() - t0 < DESTAPADO_ESPERA_MS) await esperar(150);
+            while (destapado() && performance.now() - t0 < DESTAPADO_ESPERA_MS) await esperar(150);
         }
         const e = esc.siguiente();
         dibujarE(ui, e.nivel.trazo, e.direccion);
@@ -362,7 +419,7 @@ async function medirOjo(ui, seg, guia, ojo, lista) {
         { etiqueta: 'Algunas más oscuras', valor: 'distinto', secundario: true },
     ]);
 
-    return { ...esc.resultado(), reloj, oclusionVerificada, destapes, distanciaControlada, ensayos: esc.ensayos };
+    return { ...esc.resultado(), reloj, oclusionVerificada, metodoOclusion, alVerificar, destapes, distanciaControlada, ensayos: esc.ensayos };
 }
 
 // ------------------------------------------------------------------ la prueba
@@ -436,6 +493,10 @@ export async function examenVista(ui) {
         await guia.decir(seg.tipo === 'celular' ? 'vista-distancia' : 'vista-distancia-pc');
         const distanciaInicial = await esperarDistancia(ui, seg, guia);
         if (distanciaInicial) await guia.decir('vista-distancia-bien');
+        // Referencia de la textura de cada ojo, con los dos destapados (la voz de arriba dio tiempo
+        // de juntar muestras; si faltan, se espera hasta 5 s más: en un celular lento salen ~3 por s)
+        const aDistancia = (m) => estadoDistancia(m.distancia, seg.objetivo) === 'bien';
+        for (let k = 0; k < 34 && !(seg.ref = referencia(seg.estado.texturas, aDistancia)); k++) await esperar(150);
 
         // 4. Cada ojo
         const OD = await medirOjo(ui, seg, guia, 'OD', lista);
@@ -475,6 +536,7 @@ export async function examenVista(ui) {
             distanciaObjetivoMm: seg.objetivo,
             distanciaMedianaMm: ds.length ? Math.round(ds[Math.floor(ds.length / 2)]) : null,
             erroresDetector: seg.estado.errores,
+            texturaReferencia: seg.ref,
             ojos,
             colores,
             ...c,

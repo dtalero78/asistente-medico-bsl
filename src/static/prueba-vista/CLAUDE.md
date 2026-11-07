@@ -49,11 +49,21 @@ saca todo perfecto).
 - **Escalera**: empieza cerca de 20/100, baja mientras acierte 2 de hasta 3, para en el primer nivel
   que no pasa; si no ve la inicial, sube hasta 20/200. Dirección al azar entre las 4 (adivinar = 1 de
   4), nunca 3 iguales seguidas.
-- **Un ojo a la vez**: la cámara exige el ojo tapado «cerrado» (EAR < 0,15) y el medido abierto. Si
-  en 20 s no lo logra (con la mano encima MediaPipe puede no verlo así), sigue igual y queda
-  `oclusionVerificada: false`. Si se verificó, antes de cada E se revisa otra vez: si lo destapó, la
-  voz se lo recuerda (`destapes`; después de 3 ya no se revisa y queda el motivo para el médico).
-  **Por confirmar con pacientes reales.**
+- **Un ojo a la vez, verificado por la IMAGEN** (`src/oclusion.js`). Con la palma encima, MediaPipe
+  reconstruye la cara y dibuja ese ojo ABIERTO (la apertura de los párpados nunca baja): en la
+  primera prueba real (Daniel, 7-nov-2026) la versión que miraba los párpados no notaba si había un
+  ojo tapado o no. Ahora se mide la textura de los píxeles de cada ojo (bordes / brillo; un ojo
+  abierto tiene iris, blanco y pestañas, una palma es lisa), en la región que dan las comisuras
+  (esas sí las ubica bien). Al terminar la distancia, con los dos destapados, se toma la referencia
+  de cada ojo; tapado = su textura bajo el 45 % de la suya y el otro sobre el 60 % de la suya,
+  3 medidas nuevas seguidas. Un reflejo en las gafas (región con > 18 % de píxeles casi blancos) no
+  cuenta ni como tapado ni como destapado. La referencia se toma solo con muestras a la distancia de
+  la prueba y se descarta si un ojo tiene la mitad o el doble que el otro (ya estaba tapado). Si
+  tapa el equivocado, la voz se lo dice enseguida. Si lo CIERRA en vez de
+  taparlo, vale por los párpados (`metodoOclusion`: 'imagen' | 'parpados'). Si en 20 s no lo
+  logra, sigue y queda `oclusionVerificada: false`. Antes de cada E se revisa con el mismo método
+  (`destapes`; después de 3 ya no). En el stub, `__stub.tapar = 'OD' | 'OI'` pinta la palma sin
+  tocar los landmarks, igual que pasa con MediaPipe real. **Umbrales por confirmar con pacientes.**
 - **Reloj**: líneas de 3 px; con 1,6 el suavizado dejaba las diagonales más claras (falso positivo).
 - **Láminas**: cada una para UN tipo (protán o deután): figura y fondo difieren solo en la dirección
   de color que su matriz de Machado 2009 manda a cero, con brillo al azar por punto. «Fuertes» para
@@ -65,7 +75,8 @@ saca todo perfecto).
 
 ## Pruebas
 
-`node src/static/prueba-vista/pruebas/node.mjs` (80 casos): distancia, 20/40 exacto en 8 tipos de
+`node src/static/prueba-vista/pruebas/node.mjs` (95 casos): ojo tapado por textura (ojo sintético
+contra palma, con poca luz, reflejo de gafas, referencia con un ojo ya tapado, los cuatro estados), distancia, 20/40 exacto en 8 tipos de
 pantalla (y el más cercano en las que no se puede), la E en sus cuatro direcciones, direcciones al azar, pacientes simulados con agudeza
 conocida (la escalera queda a un nivel o menos en ≥ 85 %), cada lámina contra la simulación de
 daltonismo, lectura de colores y concepto.

@@ -134,6 +134,8 @@ TEXTOS = {
     'vista-tapa-derecho': 'Ahora destapa el izquierdo y tápate el ojo derecho. Vamos con tu ojo izquierdo.',
     'vista-tapa-bien-izquierdo': 'Mantén bien tapado el ojo izquierdo.',
     'vista-tapa-bien-derecho': 'Mantén bien tapado el ojo derecho.',
+    'vista-otro-ojo-izquierdo': 'Ese es el otro. Tápate el ojo izquierdo y deja el derecho abierto.',
+    'vista-otro-ojo-derecho': 'Ese es el otro. Tápate el ojo derecho y deja el izquierdo abierto.',
     'vista-e': 'Vas a ver una letra E. Toca la flecha hacia donde apuntan sus patas. Si no la ves, toca No la veo. '
                'Cada vez va a ser más pequeña: está bien no verlas todas.',
     'vista-reloj': 'Ahora mira el centro de este reloj de líneas. ¿Todas las líneas se ven igual de negras, o algunas '

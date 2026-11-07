@@ -22,7 +22,7 @@ const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto'
 // Los de la prueba visual (vista.js) van aparte: el avatar no los usa y no debe bajarlos (~1 MB)
 export const CLIPS_VISTA = ['vista-intro', 'vista-gafas', 'vista-ponte-gafas', 'vista-miopia', 'vista-astigmatismo',
     'vista-tarjeta', 'vista-distancia', 'vista-distancia-pc', 'vista-distancia-bien', 'vista-tapa-izquierdo', 'vista-tapa-derecho',
-    'vista-tapa-bien-izquierdo', 'vista-tapa-bien-derecho', 'vista-e', 'vista-reloj', 'vista-destapate',
+    'vista-tapa-bien-izquierdo', 'vista-tapa-bien-derecho', 'vista-otro-ojo-izquierdo', 'vista-otro-ojo-derecho', 'vista-e', 'vista-reloj', 'vista-destapate',
     'vista-colores', 'vista-fin', 'acercate', 'alejate', 'no-te-veo', 'camara'];
 const MAX_CLIP_MS = 20000;   // si un clip no avisa que termino, no se queda esperando para siempre
 

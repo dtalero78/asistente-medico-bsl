@@ -8,6 +8,29 @@ import {
     evaluarColores, azarConSemilla, NINGUNO,
 } from '../src/colores.js';
 import { concepto } from '../src/resultado.js';
+import { textura, regionOjo, referencia, estadoOclusion, OCLUSION } from '../src/oclusion.js';
+
+// Imagen sintética de 80×50: un ojo (blanco + iris oscuro + pupila, con pestañas) o una palma lisa
+function imagen(fn, w = 80, h = 50) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const [r, g, b] = fn(x, y), i = (y * w + x) * 4;
+        data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+    }
+    return { data, width: w, height: h };
+}
+const piel = [200, 150, 120];
+const ojoAbierto = (luz = 1) => imagen((x, y) => {
+    const dx = (x - 40) / 30, dy = (y - 25) / 12, d = Math.hypot(x - 40, y - 25);
+    let c = piel;
+    if (dx * dx + dy * dy < 1) c = d < 4 ? [15, 15, 15] : d < 10 ? [90, 60, 40] : [235, 230, 225];
+    if (Math.abs(dy + 1) < 0.12 && Math.abs(dx) < 1 && x % 3 === 0) c = [40, 30, 25];   // pestañas
+    return c.map((v) => Math.min(255, v * luz));
+});
+const palma = (luz = 1) => imagen((x, y) => {
+    const t = Math.hypot(x - 40, y - 25) / 47;
+    return [216 - 25 * t, 169 - 25 * t, 138 - 26 * t].map((v) => v * luz);
+});
 
 export function correr({ grupo, comprobar }) {
     grupo('Distancia y escala');
@@ -169,6 +192,36 @@ export function correr({ grupo, comprobar }) {
             const dentro = media(a.filter((p) => p.x > 0)), fuera = media(a.filter((p) => p.x <= 0));
             comprobar('protán simulado: mismo brillo medio en figura y fondo (≤ 0.01)', Math.abs(dentro - fuera) <= 0.01, `${dentro.toFixed(3)} vs ${fuera.toFixed(3)}`);
         }
+    }
+
+    grupo('Ojo tapado (por píxeles)');
+    {
+        const R = { x: 0, y: 0, w: 79, h: 49 };
+        const abierto = textura(ojoAbierto(), R), mano = textura(palma(), R);
+        comprobar('un ojo abierto tiene mucha más textura que una palma (×4 o más)', abierto > 4 * mano, `${abierto.toFixed(1)} vs ${mano.toFixed(1)}`);
+        const oscuro = textura(ojoAbierto(0.4), R);
+        comprobar('con poca luz el ojo sigue teniendo textura parecida (relativa al brillo)', oscuro > 0.6 * abierto, `${oscuro.toFixed(1)} vs ${abierto.toFixed(1)}`);
+        const reg = regionOjo({ x: 100, y: 50 }, { x: 160, y: 50 });
+        comprobar('la región sale de las comisuras (no de los párpados)', Math.round(reg.w) === 72 && Math.round(reg.h) === 43 && Math.round(reg.x) === 94);
+        const muestras = Array.from({ length: 15 }, () => ({ OD: abierto, OI: abierto * 0.9 }));
+        const ref = referencia(muestras);
+        comprobar('referencia con 12+ muestras', ref && ref.OD === abierto);
+        comprobar('sin muestras suficientes no hay referencia', referencia(muestras.slice(0, 5)) === null);
+        comprobar('tapa el izquierdo → tapado', estadoOclusion(ref, { OD: abierto, OI: mano }, 'OI') === 'tapado');
+        comprobar('no tapa nada → destapado', estadoOclusion(ref, { OD: abierto, OI: abierto }, 'OI') === 'destapado');
+        comprobar('tapa el equivocado → otro', estadoOclusion(ref, { OD: mano, OI: abierto }, 'OI') === 'otro');
+        comprobar('sin referencia → null', estadoOclusion(null, { OD: 1, OI: 1 }, 'OI') === null);
+        comprobar('umbrales coherentes', OCLUSION.TAPADO < OCLUSION.ABIERTO && OCLUSION.ABIERTO < OCLUSION.DESTAPADO);
+        // Reflejo de la pantalla en el lente: lavado y casi sin bordes, pero blanco
+        const reflejo = imagen((x, y) => (Math.hypot(x - 40, y - 25) < 22 ? [252, 252, 250] : piel));
+        comprobar('un reflejo en las gafas no cuenta (textura null, ni tapado ni destapado)', textura(reflejo, R) === null);
+        comprobar('ni con poca luz la palma se toma por reflejo', textura(palma(0.5), R) !== null);
+        // Se adelantó: ya tenía un ojo tapado al tomar la referencia
+        const adelantado = Array.from({ length: 15 }, () => ({ OD: abierto, OI: mano }));
+        comprobar('referencia con un ojo ya tapado → null', referencia(adelantado) === null);
+        // Solo muestras válidas (a la distancia de la prueba)
+        const mezcla = [...Array.from({ length: 15 }, () => ({ OD: 99, OI: 99, bien: false })), ...Array.from({ length: 15 }, () => ({ OD: abierto, OI: abierto, bien: true }))];
+        comprobar('la referencia usa solo las muestras válidas', referencia(mezcla, (m) => m.bien).OD === abierto);
     }
 
     grupo('Lectura de colores');

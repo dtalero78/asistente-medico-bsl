@@ -19,6 +19,11 @@ const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto'
     'oidos-practica-lista', 'oidos-practica-otra', 'oidos-practica-sigamos',
     'oidos-no-suena', 'oidos-iphone-silencio',
     'oidos-intro-solo', 'oidos-sin-audifonos-solo', 'oidos-no-suena-solo', 'conectando', 'fin-visio'];
+// Los de la prueba visual (vista.js) van aparte: el avatar no los usa y no debe bajarlos (~1 MB)
+export const CLIPS_VISTA = ['vista-intro', 'vista-gafas', 'vista-ponte-gafas', 'vista-miopia', 'vista-astigmatismo',
+    'vista-tarjeta', 'vista-distancia', 'vista-distancia-pc', 'vista-distancia-bien', 'vista-tapa-izquierdo', 'vista-tapa-derecho',
+    'vista-tapa-bien-izquierdo', 'vista-tapa-bien-derecho', 'vista-e', 'vista-reloj', 'vista-destapate',
+    'vista-colores', 'vista-fin', 'acercate', 'alejate', 'no-te-veo', 'camara'];
 const MAX_CLIP_MS = 20000;   // si un clip no avisa que termino, no se queda esperando para siempre
 
 export function crearGuia() {
@@ -32,8 +37,8 @@ export function crearGuia() {
     let terminarClip = null;
 
     // Calentar la cache: asi cada clip arranca al instante cuando toca
-    function precargar() {
-        for (const id of CLIPS) fetch(`${BASE}${id}.mp3`).catch(() => {});
+    function precargar(lista = CLIPS) {
+        for (const id of lista) fetch(`${BASE}${id}.mp3`).catch(() => {});
     }
 
     /** Llamar SINCRONO dentro del manejador del toque, antes de cualquier await. */

@@ -161,6 +161,12 @@ oído. Reemplazo propuesto de `audiometria-virtual.html` de PLATAFORMA2.
 - El paciente ve audiograma y veredicto bajo el resumen (`pintarResultadosOidos`).
 - Página para probarla sola, sin entrevista: `/static/prueba-oidos/index.html`.
 
+### Prueba visual (prototipo, `src/static/prueba-vista/`)
+
+Visiometría guiada (agudeza de cerca por ojo con la E, reloj de astigmatismo, láminas de colores)
+para reemplazar las láminas de la visiometría virtual de PLATAFORMA2. Ver su CLAUDE.md. Fase 1:
+solo la página de prueba `/static/prueba-vista/index.html`; todavía no la usa ningún paciente.
+
 ### Prueba de ojos (obligatoria, antes de la entrevista)
 
 Después de la de oídos, el paciente pasa por tres estudios del Escáner Ocular

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Prueba visual · BSL</title>
+  <style>
+    body { margin: 0; background: #131417; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+    .demo { max-width: 460px; margin: 0 auto; padding: 32px 16px; display: flex; flex-direction: column; gap: 14px; }
+    .demo h1 { font-size: 1.4rem; font-weight: 500; margin: 0; }
+    .demo p { color: rgba(255,255,255,.72); line-height: 1.45; margin: 0; }
+    .demo button { min-height: 50px; border: none; border-radius: 10px; background: #0b5cff; color: #fff; font: inherit; font-size: 1rem; font-weight: 500; }
+    .demo-resultado { background: #1c1e24; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .demo-resultado h2 { margin: 0; font-size: 1.1rem; font-weight: 500; }
+    .demo-resultado li { color: rgba(255,255,255,.8); font-size: .9rem; }
+    .demo pre { max-height: 300px; overflow: auto; font-size: 10px; background: rgba(255,255,255,.04); padding: 10px; border-radius: 8px; }
+  </style>
+</head>
+<!-- La prueba visual sola (static/js/vista.js), para probarla sin la visiometría. No guarda nada. -->
+<body>
+  <main class="demo" id="demo">
+    <h1>Prueba visual</h1>
+    <p>Página de prueba de la visiometría guiada: agudeza de cerca por cada ojo, reloj de astigmatismo y colores. No guarda nada.</p>
+    <p>Necesitas la cámara y el volumen arriba. Si usas gafas, tenlas a mano.</p>
+    <button type="button" id="empezar">Empezar</button>
+    <section class="demo-resultado" id="resultado" hidden></section>
+  </main>
+  <script type="module" src="demo.js"></script>
+</body>
+</html>

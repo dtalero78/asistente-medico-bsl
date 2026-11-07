@@ -15,6 +15,7 @@ export const GEOM = {
 window.__stub = {
   present: true,
   earScale: 1,      // 1 = ojo abierto; 0 = cerrado del todo
+  earOjo: { OD: 1, OI: 1 },   // por ojo, encima de earScale (para tapar uno solo)
   irisScale: 1,     // escala el iris para simular acercarse o alejarse
   jitterPx: 0,      // movimiento entre frames
   pupilFrac: 0.42,  // ratio pupila/iris que pinta la cámara falsa
@@ -42,7 +43,7 @@ function construir() {
   const dx = s.jitterPx ? (s.frames % 2 ? s.jitterPx : -s.jitterPx) : 0;
   const R = (GEOM.irisPx / 2) * s.irisScale;
   const halfW = GEOM.eyeHalfW * s.irisScale;
-  const halfH = GEOM.eyeHalfH * s.irisScale * s.earScale;
+  const halfHDe = (ojo) => GEOM.eyeHalfH * s.irisScale * s.earScale * ((s.earOjo || {})[ojo] ?? 1);
 
   const put = (i, xPx, yPx) => { lm[i] = { x: (xPx + dx) / W, y: yPx / H, z: 0 }; };
 
@@ -51,6 +52,7 @@ function construir() {
     const idx = IDX[ojo];
     put(idx.outer, c.x - halfW, c.y);
     put(idx.inner, c.x + halfW, c.y);
+    const halfH = halfHDe(ojo);
     put(idx.top, c.x, c.y - halfH);
     put(idx.bottom, c.x, c.y + halfH);
     put(idx.irisCenter, c.x, c.y);

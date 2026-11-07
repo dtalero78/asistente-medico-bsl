@@ -115,6 +115,33 @@ TEXTOS = {
     'fin': 'Terminamos la prueba de ojos. Ahora te conecto con el asistente virtual.',
     # Visiometria virtual de BSL-PLATAFORMA2: la prueba de ojos va al final y despues sigue su circuito
     'fin-visio': 'Terminamos la prueba de ojos. Muchas gracias.',
+    # Prueba visual (static/js/vista.js): agudeza de cerca por ojo, reloj de astigmatismo y colores.
+    # Aquí el paciente sí mira la pantalla y contesta con botones.
+    'vista-intro': 'Vamos a revisar qué tan bien ves de cerca, un ojo a la vez, y los colores. Yo te voy guiando paso a paso.',
+    'vista-gafas': '¿Usas gafas o lentes de contacto? Toca sí o no.',
+    'vista-ponte-gafas': 'Si las tienes contigo, póntelas ahora: la prueba se hace con ellas. Cuando estés listo, toca Listo.',
+    'vista-miopia': '¿Algún médico te ha dicho que tienes miopía?',
+    'vista-astigmatismo': '¿Y astigmatismo?',
+    'vista-tarjeta': 'Necesito saber el tamaño de tu pantalla. Pon una tarjeta, como tu cédula, sobre la pantalla, '
+                     'y mueve la barra hasta que el rectángulo tenga el mismo ancho. Luego toca Listo.',
+    'vista-distancia': 'Ahora sostén el celular frente a tu cara, a unos cuarenta centímetros, más o menos el largo de '
+                       'tu antebrazo. Yo te digo si te acercas o te alejas.',
+    'vista-distancia-pc': 'Ahora siéntate frente a la cámara, más o menos a medio metro, con la cara de frente. '
+                          'Yo te digo si te acercas o te alejas.',
+    'vista-distancia-bien': 'Así está bien. Trata de mantener esa distancia durante toda la prueba.',
+    'vista-tapa-izquierdo': 'Tápate el ojo izquierdo con la palma de la mano, sin apretarlo, y deja el derecho abierto. '
+                            'Vamos a revisar tu ojo derecho.',
+    'vista-tapa-derecho': 'Ahora destapa el izquierdo y tápate el ojo derecho. Vamos con tu ojo izquierdo.',
+    'vista-tapa-bien-izquierdo': 'Mantén bien tapado el ojo izquierdo.',
+    'vista-tapa-bien-derecho': 'Mantén bien tapado el ojo derecho.',
+    'vista-e': 'Vas a ver una letra E. Toca la flecha hacia donde apuntan sus patas. Si no la ves, toca No la veo. '
+               'Cada vez va a ser más pequeña: está bien no verlas todas.',
+    'vista-reloj': 'Ahora mira el centro de este reloj de líneas. ¿Todas las líneas se ven igual de negras, o algunas '
+                   'se ven más oscuras que otras?',
+    'vista-destapate': 'Muy bien. Ya puedes destaparte los ojos.',
+    'vista-colores': 'Por último, los colores. En cada círculo de puntos hay un número escondido. Toca el número que '
+                     'veas, o No veo ningún número.',
+    'vista-fin': 'Terminamos la prueba visual.',
     'camara': 'Necesito que permitas la cámara. Toca el candado junto a la dirección de la página, '
               'permite la cámara y vuelve a intentarlo.',
 }

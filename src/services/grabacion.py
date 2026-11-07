@@ -220,6 +220,36 @@ def fotos_de_oidos(oidos):
             if isinstance(f, dict) and str(f.get("momento", "")).startswith("oidos-")][:3]
 
 
+def guardar_prueba_visiometria(orden_id, ojos):
+    """La prueba de ojos hecha dentro de la visiometria virtual de BSL-PLATAFORMA2 (no hay entrevista):
+    fotos de los ojos y meta.json en una carpeta propia, entrevistas-avatar/<orden>/<fecha>_visiometria/,
+    para que la ficha la muestre como las demas (meta.origen = "visiometria").
+
+    Returns: (carpeta, la prueba limpia con las keys de sus fotos, o None si no llego nada valido)
+    """
+    meta_ojos, fotos_ojos = limpiar_ojos(ojos)
+    if meta_ojos is None:
+        return None, None
+    carpeta = _carpeta(orden_id, "visiometria")
+    try:
+        meta_ojos["fotos"] = _subir_fotos(carpeta, fotos_ojos)
+    except Exception as e:
+        logger.error("Error subiendo las fotos de los ojos de %s: %s", carpeta, e)
+        meta_ojos["fotos"] = []
+    meta = {
+        "orden_id": orden_id,
+        "origen": "visiometria",
+        "fecha": datetime.now(COLOMBIA).isoformat(timespec="seconds"),
+        "resumen": None,
+        "transcripcion": [],
+        "fotos": meta_ojos["fotos"],
+        "audio": None,
+        "ojos": meta_ojos,
+    }
+    _subir(f"{carpeta}/meta.json", json.dumps(meta, ensure_ascii=False, indent=2).encode(), "application/json")
+    return carpeta, meta_ojos
+
+
 def _bajar_audio_elevenlabs(conversation_id, intentos=12, espera=10):
     """ElevenLabs tarda unos segundos en procesar la conversacion antes de dar el audio."""
     headers = {"xi-api-key": os.getenv("ELEVENLABS_API_KEY")}

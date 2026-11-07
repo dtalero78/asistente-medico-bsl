@@ -16,7 +16,8 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 logger.info("Flask iniciado correctamente")
 
-from services.patient import fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria, tiene_audiometria_plataforma
+from services.patient import (fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria,
+                              tiene_audiometria_plataforma, prueba_ojos_hecha, es_orden_bsl)
 from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
@@ -25,6 +26,7 @@ from services import avatar, grabacion
 from services.avatar import PACIENTE_DEMO
 from services import dispositivo
 import time
+import re
 
 
 @app.route('/')
@@ -60,7 +62,9 @@ def get_paciente():
                 return jsonify({
                     'error': 'Paciente no encontrado en formularios',
                     'celular': result['celular'],
-                    'audiometriaHecha': tiene_audiometria_plataforma(_id)
+                    'audiometriaHecha': tiene_audiometria_plataforma(_id),
+                    # Ya hizo la prueba de ojos (en la visiometria de la plataforma): no la repite
+                    'ojosHechos': prueba_ojos_hecha(_id) is not None
                 }), 404
             else:
                 return jsonify({'error': 'Paciente no encontrado'}), 404
@@ -71,7 +75,9 @@ def get_paciente():
             'encuestaSalud': result['encuestaSalud'],
             'antecedentesFamiliares': result['antecedentesFamiliares'],
             # Ya hizo la audiometria de la plataforma: avatar.js se salta la prueba de oidos
-            'audiometriaHecha': tiene_audiometria_plataforma(_id)
+            'audiometriaHecha': tiene_audiometria_plataforma(_id),
+            # Ya hizo la prueba de ojos (en la visiometria de la plataforma): no la repite
+            'ojosHechos': prueba_ojos_hecha(_id) is not None
         })
 
     except Exception as e:
@@ -278,6 +284,48 @@ def guardar_evidencia(_id, data, resumen, turnos):
     return carpeta
 
 
+# La prueba de ojos hecha dentro de la visiometria virtual de BSL-PLATAFORMA2: esa pagina carga ojos.js
+# desde aqui (CORS) y manda el resultado. Mismo camino que la del avatar: fotos a Spaces y
+# HistoriaClinica.pruebaOjos, que leen la ficha, la historia clinica en PDF y el certificado.
+ORDEN_VALIDA = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
+
+
+@app.route('/ojos/estado', methods=['GET'])
+def ojos_estado():
+    """Lo que la visiometria necesita saber antes de la prueba de ojos, sin datos clinicos: si la orden
+    es de BSL (la unica IPS que la hace) y si ya la tiene hecha (con el asistente o antes)."""
+    _id = request.args.get('_id') or ''
+    if not ORDEN_VALIDA.match(_id):
+        return jsonify({'error': 'orden_invalida'}), 400
+    aplica = es_orden_bsl(_id)
+    return jsonify({'aplica': aplica, 'hecha': aplica and prueba_ojos_hecha(_id) is not None})
+
+
+@app.route('/ojos/guardar', methods=['POST'])
+def ojos_guardar():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'cuerpo_invalido'}), 400
+    _id = data.get('_id')
+    if not isinstance(_id, str) or not ORDEN_VALIDA.match(_id):
+        return jsonify({'error': 'orden_invalida'}), 400
+    if not es_orden_bsl(_id):
+        return jsonify({'error': 'orden_no_encontrada'}), 404
+    # La pagina solo la corre si no esta hecha (/ojos/estado): una que ya esta no se reescribe desde aqui
+    if prueba_ojos_hecha(_id) is not None:
+        return jsonify({'error': 'ya_hecha'}), 409
+    try:
+        carpeta, prueba = grabacion.guardar_prueba_visiometria(_id, data.get('ojos'))
+    except Exception as e:
+        logger.error("No se pudo guardar en Spaces la prueba de ojos de %s: %s", _id, e)
+        carpeta, prueba = None, grabacion.limpiar_ojos(data.get('ojos'))[0]
+    if prueba is None:
+        return jsonify({'error': 'sin_prueba'}), 400
+    guardar_prueba_ojos(_id, prueba)
+    logger.info("Prueba de ojos de la visiometria %s guardada (%s)", _id, carpeta)
+    return jsonify({'success': True})
+
+
 @app.route('/avatar/end', methods=['POST'])
 def avatar_end():
     """Cierra la sesion, arma el resumen desde la transcripcion y lo despacha (salvo en demo)."""
@@ -328,7 +376,9 @@ def avatar_end():
             'nombre': (paciente or result).get('primerNombre') or 'Paciente',
             'encuestaSalud': (paciente or {}).get('encuestaSalud', []),
             'antecedentesFamiliares': (paciente or {}).get('antecedentesFamiliares', []),
-            'indicadoresOjos': ojos.get('indicadores') if ojos.get('realizado') else None,
+            # La de esta consulta o, si se la salto, la que ya tenia (la de la visiometria)
+            'indicadoresOjos': (ojos.get('indicadores') if ojos.get('realizado')
+                                else (prueba_ojos_hecha(_id) or {}).get('indicadores')),
         })
         body['resumen'] = resumen
         if paciente is None:

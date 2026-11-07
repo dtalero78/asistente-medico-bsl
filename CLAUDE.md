@@ -154,7 +154,7 @@ oído. Reemplazo propuesto de `audiometria-virtual.html` de PLATAFORMA2.
   Es la fila que leen el certificado, el PDF y el informe por empresa. **La que cuenta es la
   audiometría normal de la plataforma** (Daniel, 4-nov-2026: PLATAFORMA2 la vuelve a pedir a las órdenes
   de NUBIA). Si la orden ya la tiene, `/api/paciente` trae `audiometriaHecha` y el paciente **no repite
-  la prueba de oídos** (`tiene_audiometria_plataforma`; la de ojos sí va siempre). Si de todos modos
+  la prueba de oídos** (`tiene_audiometria_plataforma`). Si de todos modos
   llega a guardar, no toca la de la plataforma; un reintento actualiza la del asistente. Sin
   prueba de oídos (sin audífonos) no hay fila. La visiometría de la plataforma sigue: la de ojos no
   mide agudeza ni colores.
@@ -212,4 +212,16 @@ para celular es `src/static/js/ojos.js`; los estudios se usan sin modificarlos.
 - «Intentar de nuevo» tras una llamada cortada repite solo la entrevista, no la prueba.
 - MediaPipe (~10 MB, CDN de jsdelivr + Google Storage) se precarga en la pantalla de inicio y se
   libera antes de conectar LiveKit: los dos a la vez ahogan un celular de gama baja.
+- **También va en la visiometría virtual de PLATAFORMA2** (Daniel, 7-nov-2026), al final, después
+  de Ishihara, y obligatoria igual (cámara negada = no avanza). Esa página carga `ojos.js` y
+  `guia-voz.js` **desde este dominio** (CORS; `public/js/prueba-ojos-asistente.js` allá), arma su
+  pantalla con `montarPruebaOjos` y guarda por `POST /ojos/guardar` → `grabacion.guardar_prueba_visiometria`
+  (carpeta `<fecha>_visiometria`, `meta.origen = "visiometria"`) + `HistoriaClinica.pruebaOjos`.
+  `GET /ojos/estado` le dice solo si aplica (orden de BSL; ipsVip usa la misma página) y si ya está hecha.
+  Por eso los módulos no pueden usar rutas absolutas `/static/...`: `guia-voz.js` arma la de los
+  audios con `import.meta.url`.
+- **Si ya la hizo (`/api/paciente` → `ojosHechos`), el asistente no la repite**: tras oídos dice
+  «Ahora te conecto…» (`conectando`) y la 4a sugerencia sale de la guardada (`prueba_ojos_hecha`).
+  La prueba de oídos usa entonces sus frases sin «después tus ojos» (`oidos.js`, `sinOjos`; clips
+  `*-solo`). **Una prueba no realizada nunca pisa una hecha** (`guardar_prueba_ojos`).
 

@@ -113,6 +113,9 @@ export async function examenOidos(ui, salida) {
     const guia = ui.guia || GUIA_MUDA;
     const t0 = Date.now();
     const p = crearPantalla(ui, guia);
+    // Ya hizo la prueba de ojos en la visiometria de la plataforma: despues de esta sigue el
+    // asistente, no los ojos, y las frases que nombran los ojos cambian (avatar.js)
+    p.sinOjos = !!ui.sinOjos;
     try {
         return await correr(p, ui, salida, t0);
     } catch (error) {
@@ -215,21 +218,25 @@ function crearPantalla(ui, guia) {
 
 // ------------------------------------------------------------------ flujo
 async function correr(p, ui, salida, t0) {
-    p.paso('Prueba de oídos', 'Primero tus oídos y después tus ojos. Mientras suenan los tonos tomaremos unas fotos para confirmar que eres tú.');
+    p.paso('Prueba de oídos', p.sinOjos
+        ? 'Una prueba corta de tus oídos. Mientras suenan los tonos tomaremos unas fotos para confirmar que eres tú.'
+        : 'Primero tus oídos y después tus ojos. Mientras suenan los tonos tomaremos unas fotos para confirmar que eres tú.');
     p.progreso(0, SECUENCIA.length, null);
-    await p.decir('oidos-intro');
+    await p.decir(p.sinOjos ? 'oidos-intro-solo' : 'oidos-intro');
 
     // 1. Audifonos
     p.paso('¿Qué audífonos tienes?', 'Póntelos, los dos, y elige el tipo.');
     const eleccion = p.opciones([
         ...PERFILES.map((x) => ({ valor: x.id, etiqueta: x.nombre, detalle: x.detalle, icono: x.id })),
-        { valor: 'ninguno', etiqueta: 'No tengo', detalle: 'Seguimos con los ojos', icono: 'ninguno' },
+        { valor: 'ninguno', etiqueta: 'No tengo', detalle: p.sinOjos ? 'Seguimos con el asistente' : 'Seguimos con los ojos', icono: 'ninguno' },
     ], 'perfiles');
     p.decir('oidos-audifonos');
     const idPerfil = await eleccion;
     if (idPerfil === 'ninguno') {
-        p.paso('Sin audífonos', 'La prueba de oídos necesita audífonos. Seguimos con la de ojos.');
-        await p.decir('oidos-sin-audifonos');
+        p.paso('Sin audífonos', p.sinOjos
+            ? 'La prueba de oídos necesita audífonos. Seguimos con el asistente virtual.'
+            : 'La prueba de oídos necesita audífonos. Seguimos con la de ojos.');
+        await p.decir(p.sinOjos ? 'oidos-sin-audifonos-solo' : 'oidos-sin-audifonos');
         return { realizado: false, motivo: 'El paciente no tenía audífonos.', version: VERSION };
     }
     const perfil = PERFILES.find((x) => x.id === idPerfil);
@@ -374,12 +381,14 @@ async function revisarVolumen(p, salida, perfil, mic) {
             reportar('oidos', null, `no sonó el tono de referencia (${noOyo})`);
             // Antes no habia salida: si el tono nunca sonaba, el paciente quedaba aqui para siempre
             if (noOyo >= NO_OYO_PARA_SALIR) {
-                p.paso('No logramos que suene', 'Puedes probar otra vez o seguir con la prueba de los ojos.');
+                p.paso('No logramos que suene', p.sinOjos
+                    ? 'Puedes probar otra vez o seguir con el asistente virtual.'
+                    : 'Puedes probar otra vez o seguir con la prueba de los ojos.');
                 const r2 = p.opciones([
                     { valor: true, etiqueta: 'Probar otra vez', primario: true },
                     { valor: false, etiqueta: 'Seguir sin la prueba de oídos' },
                 ]);
-                p.decir('oidos-no-suena');
+                p.decir(p.sinOjos ? 'oidos-no-suena-solo' : 'oidos-no-suena');
                 if (!(await r2)) return SIN_SONIDO;
                 continue;
             }

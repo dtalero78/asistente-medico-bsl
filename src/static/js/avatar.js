@@ -4,7 +4,7 @@
 // resultados viajan en memoria y se guardan junto con la entrevista en /avatar/end.
 import { showNotification } from './ui.js';
 import { checkMicrophonePermission, showPermissionError } from './permissions.js';
-import { precargarModelo, examenOjos, pintarResultados } from './ojos.js';
+import { precargarModelo, examenOjos, pintarResultados, liberarModelo } from './ojos.js';
 import { prepararAudio, examenOidos, pintarResultadosOidos } from './oidos.js';
 import { crearGuia } from './guia-voz.js';
 // Avisos al servidor cuando algo falla antes de la entrevista (antes no habia rastro: 1-nov-2026)
@@ -78,6 +78,7 @@ let finalizando = false;
 let conversationId = null;
 let ojos = null;   // resultado de la prueba de ojos; sobrevive a "Intentar de nuevo"
 let oidos = null;  // igual, el de la prueba de oidos
+let ojosYaHechos = false;   // la hizo en la visiometria de la plataforma: aqui no se repite
 
 // Evidencia de la entrevista (opcion "audio + fotos"): el audio completo lo graba ElevenLabs en
 // sus servidores, y aqui solo se toman unas fotos pequenas de la camara del paciente para
@@ -135,9 +136,12 @@ async function iniciar() {
     }
 
     mantenerPantallaEncendida();
+    // Ya hizo la prueba de ojos en la visiometria virtual de la plataforma: no la repite aqui
+    // (Daniel, 7-nov-2026). Las frases de oidos que nombran los ojos cambian (oidos.js, sinOjos).
+    ojosYaHechos = !!orden.ojosHechos;
+    oidosUI.sinOjos = ojosYaHechos;
     if (orden.audiometriaHecha) {
-        // Ya hizo la audiometria de la plataforma: no la repite aqui (Daniel, 4-nov-2026). La de
-        // ojos si va siempre: no reemplaza la visiometria de la plataforma.
+        // Ya hizo la audiometria de la plataforma: no la repite aqui (Daniel, 4-nov-2026).
         salidaOidos.cerrar().catch(() => {});
         oidos = { realizado: false, motivo: 'Ya tiene la audiometría de la plataforma.', yaHecha: true };
     } else {
@@ -149,6 +153,13 @@ async function iniciar() {
         reportar('oidos', null, `no realizada: ${oidos.motivo}`);
     }
 
+    if (ojosYaHechos) {
+        ojos = null;   // la de la visiometria ya esta en la historia clinica; /avatar/end no la toca
+        liberarModelo();
+        await guia.decir('conectando');
+        await startCall();
+        return;
+    }
     vc.dataset.estado = 'ojos';
     await pruebaDeOjos();
 }
@@ -170,14 +181,15 @@ async function pedirPermisos() {
 }
 
 // Lo que hay que saber de la orden antes de las pruebas: si el link ya se uso y si el paciente ya
-// hizo la audiometria de la plataforma
+// hizo la audiometria y la prueba de ojos de la plataforma
 async function consultarOrden() {
     try {
         const res = await fetch(`/api/paciente?_id=${encodeURIComponent(_id)}`);
         if (res.status === 403) return { usado: true };
         const datos = await res.json().catch(() => ({}));
         // 404: no ha llenado el formulario (las "pruebas" de bsl-plataforma.com)
-        return { usado: false, formularioPendiente: res.status === 404, audiometriaHecha: !!datos.audiometriaHecha };
+        return { usado: false, formularioPendiente: res.status === 404, audiometriaHecha: !!datos.audiometriaHecha,
+                 ojosHechos: !!datos.ojosHechos };
     } catch {
         return { usado: false };   // si no se puede saber, lo dice /avatar/session al conectar
     }
@@ -487,7 +499,7 @@ ojosReintentar.addEventListener('click', pruebaDeOjos);
 callButton.disabled = !consentimiento.checked;
 consentimiento.addEventListener('change', () => { callButton.disabled = !consentimiento.checked; });
 endCallBtn.addEventListener('click', () => finishCall('boton'));
-reintentarBtn.addEventListener('click', () => (ojos ? reintentarLlamada() : location.reload()));
+reintentarBtn.addEventListener('click', () => (ojos || ojosYaHechos ? reintentarLlamada() : location.reload()));
 audioBtn.addEventListener('click', () => room?.startAudio());
 
 // Igual que la llamada de voz: si el paciente se va a otra app mas de 30 s, se cierra.

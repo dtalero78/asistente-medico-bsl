@@ -133,13 +133,15 @@ def guardar_resumen(_id, resumen):
 def guardar_prueba_ojos(_id, prueba):
     """Guarda la prueba de ojos (ya limpia, grabacion.limpiar_ojos) en HistoriaClinica.pruebaOjos,
     para que entre a la historia clinica (IX. Examenes paraclinicos en BSL-PLATAFORMA2). No gasta el
-    link: eso lo hace resumenLlamada. Un reintento la sobreescribe."""
+    link: eso lo hace resumenLlamada. Un reintento la sobreescribe, pero una prueba que no se pudo
+    hacer nunca pisa una hecha (p. ej. la de la visiometria virtual de la plataforma)."""
     try:
         with db_pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE "HistoriaClinica" SET "pruebaOjos" = %s::jsonb WHERE _id = %s',
-                    (json.dumps(prueba, ensure_ascii=False), _id)
+                    'UPDATE "HistoriaClinica" SET "pruebaOjos" = %s::jsonb WHERE _id = %s '
+                    'AND (%s OR COALESCE(("pruebaOjos"->>\'realizado\')::boolean, false) = false)',
+                    (json.dumps(prueba, ensure_ascii=False), _id, bool(prueba.get('realizado')))
                 )
                 conn.commit()
                 logger.info("Prueba de ojos guardada en PostgreSQL - filas afectadas: %d", cur.rowcount)
@@ -147,6 +149,38 @@ def guardar_prueba_ojos(_id, prueba):
     except Exception as e:
         logger.error("Error al guardar la prueba de ojos en PostgreSQL: %s", str(e))
         return {"success": False, "error": str(e)}
+
+
+def prueba_ojos_hecha(_id):
+    """La prueba de ojos ya hecha de la orden (HistoriaClinica.pruebaOjos con realizado), o None. Si la
+    hizo en la visiometria virtual de la plataforma, el asistente no la repite (Daniel, 7-nov-2026) y la
+    4a sugerencia visual sale de esta. Si la BD falla, None: mejor repetirla que saltarla."""
+    if not _id:
+        return None
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT "pruebaOjos" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (_id,))
+                fila = cur.fetchone()
+        prueba = fila[0] if fila else None
+        if isinstance(prueba, str):
+            prueba = json.loads(prueba)
+        return prueba if isinstance(prueba, dict) and prueba.get('realizado') else None
+    except Exception as e:
+        logger.error("No se pudo revisar la prueba de ojos de %s: %s", _id, str(e))
+        return None
+
+
+def es_orden_bsl(_id):
+    """La orden existe y es de BSL: el unico tenant que usa la prueba de ojos."""
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT 1 FROM "HistoriaClinica" WHERE _id = %s AND tenant_id = \'bsl\' LIMIT 1', (_id,))
+                return cur.fetchone() is not None
+    except Exception as e:
+        logger.error("No se pudo revisar la orden %s: %s", _id, str(e))
+        return False
 
 
 # Prueba de oidos -> tabla audiometrias de BSL-PLATAFORMA2 (la leen el certificado, la historia clinica

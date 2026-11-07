@@ -95,6 +95,14 @@ export function precargarModelo() {
     return modeloPromesa;
 }
 
+/** Libera el detector precargado si al final no hubo prueba (ya la hizo en la visiometría): sin esto
+ *  quedaba vivo durante la videollamada, y los dos juntos ahogan un celular de gama baja. */
+export function liberarModelo() {
+    const promesa = modeloPromesa;
+    modeloPromesa = null;
+    promesa?.then((l) => l.close?.()).catch(() => {});
+}
+
 async function crearLandmarker() {
     const { FaceLandmarker, FilesetResolver } = await import(MEDIAPIPE);
     const resolver = await FilesetResolver.forVisionTasks(`${MEDIAPIPE}/wasm`);
@@ -197,6 +205,74 @@ export async function examenOjos(ui) {
         indicadores: indicadoresDe(crudos),
     };
 }
+
+/**
+ * Arma la pantalla de la prueba (camara, instrucciones, botones) dentro de `contenedor`, con su
+ * propio estilo, para paginas que no son el avatar: la visiometria virtual de BSL-PLATAFORMA2 carga
+ * este modulo desde el dominio del asistente. Ocupa toda la pantalla, oscura como el avatar.
+ * @returns el objeto `ui` que pide examenOjos, mas `inicio` (boton), `reintentar` y `quitar()`
+ */
+export function montarPruebaOjos(contenedor) {
+    if (!document.getElementById('bsl-ojos-estilos')) {
+        const estilo = document.createElement('style');
+        estilo.id = 'bsl-ojos-estilos';
+        estilo.textContent = ESTILOS_MONTADA;
+        document.head.append(estilo);
+    }
+    const raiz = document.createElement('section');
+    raiz.className = 'bsl-ojos';
+    raiz.setAttribute('aria-label', 'Prueba de ojos');
+    raiz.innerHTML = `
+        <div class="bsl-ojos-escena"><video playsinline muted></video><canvas></canvas></div>
+        <div class="bsl-ojos-panel">
+            <p class="bsl-ojos-paso">Prueba de ojos</p>
+            <h2></h2>
+            <p class="bsl-ojos-indicacion"></p>
+            <div class="bsl-ojos-estado" role="status" aria-live="polite"></div>
+            <button type="button" class="bsl-ojos-boton" data-rol="inicio" hidden>Empezar</button>
+            <button type="button" class="bsl-ojos-boton" data-rol="foto" hidden>Tomar la foto</button>
+            <button type="button" class="bsl-ojos-boton" data-rol="reintentar" hidden>Ya activé la cámara</button>
+        </div>`;
+    contenedor.append(raiz);
+    const $ = (sel) => raiz.querySelector(sel);
+    return {
+        video: $('video'),
+        overlay: $('canvas'),
+        paso: $('.bsl-ojos-paso'),
+        titulo: $('h2'),
+        indicacion: $('.bsl-ojos-indicacion'),
+        estado: $('.bsl-ojos-estado'),
+        botonFoto: $('[data-rol="foto"]'),
+        inicio: $('[data-rol="inicio"]'),
+        reintentar: $('[data-rol="reintentar"]'),
+        quitar: () => raiz.remove(),
+    };
+}
+
+// Lo mismo que avatar.css le da a la prueba en el avatar (.vc-ojos y .estimulo), para montarPruebaOjos
+const ESTILOS_MONTADA = `
+.bsl-ojos { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column;
+    background: #131417; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+.bsl-ojos-escena { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #1c1e24; }
+.bsl-ojos-escena video, .bsl-ojos-escena canvas { position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1); }
+.bsl-ojos-panel { flex: none; padding: 16px 16px max(20px, env(safe-area-inset-bottom)); display: flex;
+    flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.bsl-ojos-paso { margin: 0; font-size: 0.8rem; color: rgba(255,255,255,.6); }
+.bsl-ojos h2 { margin: 0; font-size: 1.2rem; font-weight: 500; }
+.bsl-ojos-indicacion { margin: 0; font-size: 0.92rem; line-height: 1.45; color: rgba(255,255,255,.78); max-width: 440px; }
+.bsl-ojos-estado { background: rgba(255,255,255,.08); padding: 8px 16px; border-radius: 18px; font-size: 0.92rem; }
+.bsl-ojos-estado:empty { display: none; }
+.bsl-ojos-boton { width: min(100%, 300px); min-height: 48px; padding: 12px 24px; border: none; border-radius: 8px;
+    background: #0b5cff; color: #fff; font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer; }
+.bsl-ojos-boton[hidden] { display: none; }
+.bsl-ojos-boton:disabled { background: #3a3f4b; color: rgba(255,255,255,.6); }
+.estimulo { position: fixed; inset: 0; z-index: 9100; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 24px; }
+.estimulo[hidden] { display: none; }
+.estimulo-fijacion { width: 10px; height: 10px; border-radius: 50%; }
+.estimulo-texto { margin: 0; font-size: 14px; letter-spacing: .3px; }
+`;
 
 /**
  * Pinta los resultados de la prueba de ojos bajo el resumen de la consulta: fotos de cada ojo y

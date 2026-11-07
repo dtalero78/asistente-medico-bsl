@@ -38,6 +38,14 @@ TEXTOS = {
                    'voy a tomar unas fotos con la cámara, para confirmar que eres tú quien hace la prueba.',
     'oidos-audifonos': 'Ponte tus audífonos, los dos, y toca en la pantalla qué tipo de audífonos tienes.',
     'oidos-sin-audifonos': 'Sin audífonos no podemos hacer la prueba de oídos. Sigamos con la de los ojos.',
+    # Sin prueba de ojos despues (ya la hizo en la visiometria de la plataforma): las frases que
+    # nombran los ojos tienen su version que dice que sigue el asistente (oidos.js, p.sinOjos)
+    'oidos-intro-solo': 'Hola. Antes de hablar con el asistente virtual vamos a hacer una prueba corta de '
+                        'tus oídos. Yo te voy guiando. Mientras suenan los tonos voy a tomar unas fotos con la '
+                        'cámara, para confirmar que eres tú quien hace la prueba.',
+    'oidos-sin-audifonos-solo': 'Sin audífonos no podemos hacer la prueba de oídos. Sigamos con el asistente virtual.',
+    'oidos-no-suena-solo': 'No logramos que suene. Puedes probar otra vez, o seguir con el asistente virtual.',
+    'conectando': 'Ahora te conecto con el asistente virtual.',
     'oidos-silencio': 'Quédate en silencio unos segundos, que voy a medir el ruido del lugar.',
     'oidos-ruido': 'Hay mucho ruido donde estás. Si puedes, busca un lugar más silencioso y toca: medir otra vez.',
     'oidos-volumen': 'Sube el volumen de tu celular hasta el máximo. Cuando lo tengas, toca: ya lo subí.',
@@ -105,6 +113,8 @@ TEXTOS = {
     'pupilas-destello': 'Atento: viene un destello de luz blanca. No cierres los ojos, sigue mirando el punto.',
     'pupilas-listo': 'Listo. Con ese destello vimos cómo reacciona tu pupila a la luz.',
     'fin': 'Terminamos la prueba de ojos. Ahora te conecto con el asistente virtual.',
+    # Visiometria virtual de BSL-PLATAFORMA2: la prueba de ojos va al final y despues sigue su circuito
+    'fin-visio': 'Terminamos la prueba de ojos. Muchas gracias.',
     'camara': 'Necesito que permitas la cámara. Toca el candado junto a la dirección de la página, '
               'permite la cámara y vuelve a intentarlo.',
 }

@@ -5,7 +5,9 @@
 // despues ese mismo elemento puede sonar cuantas veces se quiera. Por eso hay dos elementos fijos
 // (voz y musica) que se desbloquean en el toque de "Iniciar Consulta" y se reutilizan.
 // <audio> y no Web Audio: Web Audio se calla con el interruptor de silencio del iPhone.
-const BASE = '/static/assets/voz-ojos/';
+// Relativa a este archivo y no a la pagina: la visiometria virtual de BSL-PLATAFORMA2 carga este
+// modulo desde el dominio del asistente, y con '/static/...' buscaria los audios en el suyo
+const BASE = new URL('../assets/voz-ojos/', import.meta.url).href;
 const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto', 'un-poco-mas',
     'perfecto', 'boton-foto', 'no-te-veo',
     'foto-lista', 'fatiga', 'fatiga-que', 'faltan-30', 'fatiga-casi', 'pupilas', 'pupilas-luz',
@@ -15,7 +17,8 @@ const CLIPS = ['intro', 'tamizaje', 'acercate', 'alejate', 'abre-ojos', 'quieto'
     'oidos-cual', 'oidos-al-reves', 'oidos-otra-vez', 'oidos-prueba', 'oidos-izquierdo',
     'oidos-pausa', 'oidos-fin', 'oidos-solo', 'oidos-solo-2', 'oidos-sin-tono', 'oidos-sigues',
     'oidos-practica-lista', 'oidos-practica-otra', 'oidos-practica-sigamos',
-    'oidos-no-suena', 'oidos-iphone-silencio'];
+    'oidos-no-suena', 'oidos-iphone-silencio',
+    'oidos-intro-solo', 'oidos-sin-audifonos-solo', 'oidos-no-suena-solo', 'conectando', 'fin-visio'];
 const MAX_CLIP_MS = 20000;   // si un clip no avisa que termino, no se queda esperando para siempre
 
 export function crearGuia() {

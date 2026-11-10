@@ -68,6 +68,7 @@ Required in `.env` file (see `.env.example` pattern):
 - **PostgreSQL**: Patient data retrieval and summary storage
 - **WhatsApp via Twilio**: los números pasan por `src/services/phone.py`, port del helper de BSL-PLATAFORMA2 (`src/helpers/phone.js`). Las dos apps escriben en `conversaciones_whatsapp`: si normalizan distinto, el mismo paciente queda con dos conversaciones. Cambiar una regla en las dos.
 - **IrisChat (BSL-PLATAFORMA2)**: esta app escribe directo en `conversaciones_whatsapp` / `mensajes_whatsapp` (siempre `tenant_id = 'bsl'`). Guarda el texto real de cada plantilla y, en la misma transacción, hace `pg_notify('whatsapp_mensaje_externo', {mensaje_id})`; PLATAFORMA2 escucha ese canal y emite el evento de socket para que IrisChat lo muestre en vivo.
+- **Cierre de la consulta (BSL-PLATAFORMA2)**: `guardar_resumen` hace, en la misma transacción del UPDATE de `resumenLlamada`, `pg_notify('entrevista_terminada', {orden_id})`; PLATAFORMA2 cierra en el momento la orden de NUBIA (ATENDIDO + APTO). Su cron de 5 minutos queda de respaldo.
 - **OpenAI Model**: `gpt-4o-realtime-preview-2024-12-17` with voice `ash`
 - **AI Suggestions**: Uses `gpt-4o-mini` to generate personalized health recommendations
 

@@ -17,7 +17,7 @@ CORS(app)
 logger.info("Flask iniciado correctamente")
 
 from services.patient import (fetch_patient_data, guardar_resumen, guardar_prueba_ojos, guardar_audiometria,
-                              tiene_audiometria_plataforma, prueba_ojos_hecha, es_orden_bsl)
+                              tiene_audiometria, prueba_ojos_hecha, es_orden_bsl)
 from services.email import send_summary_email
 from services.whatsapp import send_text_message, send_template_message
 from services.ai import enviar_sugerencias_whatsapp
@@ -62,7 +62,7 @@ def get_paciente():
                 return jsonify({
                     'error': 'Paciente no encontrado en formularios',
                     'celular': result['celular'],
-                    'audiometriaHecha': tiene_audiometria_plataforma(_id),
+                    'audiometriaHecha': tiene_audiometria(_id),
                     # Ya hizo la prueba de ojos (en la visiometria de la plataforma): no la repite
                     'ojosHechos': prueba_ojos_hecha(_id) is not None
                 }), 404
@@ -74,8 +74,8 @@ def get_paciente():
             'celular': result['celular'],
             'encuestaSalud': result['encuestaSalud'],
             'antecedentesFamiliares': result['antecedentesFamiliares'],
-            # Ya hizo la audiometria de la plataforma: avatar.js se salta la prueba de oidos
-            'audiometriaHecha': tiene_audiometria_plataforma(_id),
+            # Ya tiene audiometria (la de la plataforma o una anterior del asistente): avatar.js se salta la prueba de oidos
+            'audiometriaHecha': tiene_audiometria(_id),
             # Ya hizo la prueba de ojos (en la visiometria de la plataforma): no la repite
             'ojosHechos': prueba_ojos_hecha(_id) is not None
         })
@@ -278,7 +278,7 @@ def guardar_evidencia(_id, data, resumen, turnos):
         prueba, _ = grabacion.limpiar_ojos(data.get('ojos'))
     if _id and prueba is not None:
         guardar_prueba_ojos(_id, prueba)
-    # Sin la audiometria de la plataforma, la del asistente queda en audiometrias
+    # La del asistente queda en audiometrias (sin pisar la de la plataforma)
     if _id:
         guardar_audiometria(_id, grabacion.limpiar_oidos(data.get('oidos')))
     return carpeta

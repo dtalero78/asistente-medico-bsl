@@ -192,8 +192,9 @@ def es_orden_bsl(_id):
 
 
 # Prueba de oidos -> tabla audiometrias de BSL-PLATAFORMA2 (la leen el certificado, la historia clinica
-# en PDF y el informe por empresa). La que cuenta es la de la plataforma: si ya esta, el paciente no
-# hace esta (tiene_audiometria_plataforma) y si llega a guardarse no la pisa.
+# en PDF y el informe por empresa). La que cuenta es la de la plataforma: si llega a guardarse esta, no
+# la pisa. Con cualquier audiometria ya hecha (la de la plataforma o esta misma) no se repite
+# (tiene_audiometria).
 EQUIPO_ASISTENTE = 'Asistente virtual BSL'
 FRECUENCIAS_AUDIOMETRIA = ('500', '1000', '2000', '3000', '4000', '6000')
 TECHO_OIDOS_HL = 70
@@ -257,10 +258,11 @@ def fila_audiometria(meta):
     return fila
 
 
-def tiene_audiometria_plataforma(_id):
-    """True si la orden ya tiene una audiometria hecha en la plataforma (virtual o por un
-    profesional): el paciente no repite la prueba de oidos con el asistente (Daniel, 4-nov-2026).
-    La que escribio el propio asistente no cuenta. Si la BD falla, False: mejor repetirla que saltarla."""
+def tiene_audiometria(_id):
+    """True si la orden ya tiene una audiometria: la de la plataforma (virtual o por un profesional)
+    o la que hizo el propio asistente en una entrada anterior (p. ej. se corto la entrevista). En
+    los dos casos el paciente no repite la prueba de oidos (Daniel, 4 y 10-nov-2026). Si la BD
+    falla, False: mejor repetirla que saltarla."""
     if not _id:
         return False
     try:
@@ -268,7 +270,7 @@ def tiene_audiometria_plataforma(_id):
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT 1 FROM audiometrias WHERE orden_id = %s AND tenant_id = 'bsl' "
-                    "AND deleted_at IS NULL AND equipo IS DISTINCT FROM %s LIMIT 1", (_id, EQUIPO_ASISTENTE))
+                    "AND deleted_at IS NULL LIMIT 1", (_id,))
                 return cur.fetchone() is not None
     except Exception as e:
         logger.error("No se pudo revisar la audiometria de %s: %s", _id, str(e))

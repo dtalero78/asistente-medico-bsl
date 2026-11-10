@@ -141,9 +141,10 @@ async function iniciar() {
     ojosYaHechos = !!orden.ojosHechos;
     oidosUI.sinOjos = ojosYaHechos;
     if (orden.audiometriaHecha) {
-        // Ya hizo la audiometria de la plataforma: no la repite aqui (Daniel, 4-nov-2026).
+        // Ya tiene audiometria, de la plataforma o de una entrada anterior aqui (se corto la
+        // entrevista): no la repite (Daniel, 4 y 10-nov-2026). La guardada no se toca.
         salidaOidos.cerrar().catch(() => {});
-        oidos = { realizado: false, motivo: 'Ya tiene la audiometría de la plataforma.', yaHecha: true };
+        oidos = { realizado: false, motivo: 'Ya tiene la audiometría.', yaHecha: true };
     } else {
         vc.dataset.estado = 'oidos';
         oidos = await examenOidos(oidosUI, salidaOidos);

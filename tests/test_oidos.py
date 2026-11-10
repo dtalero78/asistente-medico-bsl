@@ -15,7 +15,7 @@ from unittest import mock  # noqa: E402
 from services import grabacion  # noqa: E402
 from services.grabacion import limpiar_oidos, fotos_de_oidos, MAX_ENSAYOS_OIDOS  # noqa: E402
 from services import patient  # noqa: E402
-from services.patient import fila_audiometria, guardar_audiometria, tiene_audiometria_plataforma, EQUIPO_ASISTENTE  # noqa: E402
+from services.patient import fila_audiometria, guardar_audiometria, tiene_audiometria, EQUIPO_ASISTENTE  # noqa: E402
 
 FOTO = 'data:image/jpeg;base64,/9j/4AAQ'
 
@@ -228,27 +228,29 @@ class TestGuardarAudiometria(unittest.TestCase):
             self.assertEqual(p.cur.sql, [])
 
 
-class TestTieneAudiometriaPlataforma(unittest.TestCase):
-    """Si ya hizo la audiometria de la plataforma, no repite la prueba de oidos (Daniel, 4-nov-2026)."""
+class TestTieneAudiometria(unittest.TestCase):
+    """Con cualquier audiometria ya hecha (la de la plataforma o la del propio asistente en una
+    entrada que se corto) no repite la prueba de oidos (Daniel, 4 y 10-nov-2026)."""
 
-    def test_con_la_de_la_plataforma(self):
+    def test_con_cualquier_audiometria(self):
         cur = _Cursor((1,))
         with mock.patch.object(patient, 'db_pool', _Pool(cur)):
-            self.assertTrue(tiene_audiometria_plataforma('orden_1'))
+            self.assertTrue(tiene_audiometria('orden_1'))
         sql, params = cur.sql[0]
-        self.assertIn('equipo IS DISTINCT FROM %s', sql)   # la del asistente no cuenta
-        self.assertEqual(params, ('orden_1', EQUIPO_ASISTENTE))
+        self.assertNotIn('equipo', sql)   # la del asistente tambien cuenta
+        self.assertIn('deleted_at IS NULL', sql)
+        self.assertEqual(params, ('orden_1',))
 
     def test_sin_audiometria(self):
         with mock.patch.object(patient, 'db_pool', _Pool(_Cursor(None))):
-            self.assertFalse(tiene_audiometria_plataforma('orden_1'))
+            self.assertFalse(tiene_audiometria('orden_1'))
 
     def test_sin_orden_o_con_la_bd_caida_la_hace(self):
-        self.assertFalse(tiene_audiometria_plataforma(None))
+        self.assertFalse(tiene_audiometria(None))
         roto = mock.Mock()
         roto.connection.side_effect = RuntimeError('sin BD')
         with mock.patch.object(patient, 'db_pool', roto):
-            self.assertFalse(tiene_audiometria_plataforma('orden_1'))
+            self.assertFalse(tiene_audiometria('orden_1'))
 
 
 if __name__ == '__main__':

@@ -121,8 +121,16 @@ def guardar_resumen(_id, resumen):
                     'UPDATE "HistoriaClinica" SET "resumenLlamada" = %s WHERE _id = %s',
                     (resumen, _id)
                 )
-                conn.commit()
                 rows_affected = cur.rowcount
+                # BSL-PLATAFORMA2 hace LISTEN de este canal y cierra la orden (ATENDIDO) en el
+                # momento, sin esperar su cron de 5 minutos (Daniel, 9-nov-2026). Postgres lo
+                # entrega recien con el commit: nunca avisa de un resumen que no quedo guardado.
+                if rows_affected:
+                    cur.execute(
+                        "SELECT pg_notify('entrevista_terminada', %s)",
+                        (json.dumps({'orden_id': _id}),)
+                    )
+                conn.commit()
                 logger.info("Resumen guardado en PostgreSQL - filas afectadas: %d", rows_affected)
                 return {"success": True, "rows_affected": rows_affected}
     except Exception as e:

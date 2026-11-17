@@ -75,6 +75,8 @@ let sesion = null;
 let transcript = [];
 let cerrando = false;
 let finalizando = false;
+let cierreTimer = null;
+const ESPERA_TRAS_DESPEDIDA_MS = 20000;
 let conversationId = null;
 let ojos = null;   // resultado de la prueba de ojos; sobrevive a "Intentar de nuevo"
 let oidos = null;  // igual, el de la prueba de oidos
@@ -297,6 +299,22 @@ async function startCall() {
     } catch (error) {
         console.error('[avatar] Error al iniciar:', error);
         reportar('conexion', error);
+        // Si la sala alcanzo a conectar (fallo el microfono, por ejemplo), se suelta: si no, al
+        // tocar "Conectar" sus eventos (despedida, speak_ended, desconexion) se mezclaban con los
+        // de la sesion nueva y podian cerrarla o ensuciar la transcripcion.
+        if (room) {
+            room.removeAllListeners();
+            room.disconnect().catch(() => {});
+        }
+        room = null;
+        sesion = null;
+        transcript = [];
+        conversationId = null;
+        cerrando = false;
+        clearTimeout(cierreTimer);
+        fotoTimers.forEach(clearTimeout);
+        document.querySelectorAll('body > audio').forEach(a => a.remove());
+        audioBtn.hidden = true;
         apagarCamara();
         vc.dataset.estado = 'listo';
         showNotification('No se pudo conectar con el asistente. Intenta de nuevo.', 'error');
@@ -378,7 +396,14 @@ function onData(payload, _participant, _kind, topic) {
     } else if (msg.event_type === 'avatar.transcription' && msg.text) {
         transcript.push({ role: 'assistant', text: msg.text });
         const texto = msg.text.toLowerCase();
-        if (texto.includes(FRASE_CIERRE) || texto.includes(FRASE_CIERRE_PENDIENTE)) cerrando = true;
+        if ((texto.includes(FRASE_CIERRE) || texto.includes(FRASE_CIERRE_PENDIENTE)) && !cerrando) {
+            cerrando = true;
+            // Red de seguridad: tras la despedida se cierra con speak_ended, session_stopped o la
+            // desconexion. Si no llega ninguno, la pagina esperaba para siempre con "No cierres esta
+            // ventana" y el resumen nunca se mandaba (orden 4phfcrln6, 17-nov-2026: 6 respuestas,
+            // despedida dicha, sin /avatar/end). La despedida dura ~5 s; a los 20 se cierra igual.
+            cierreTimer = setTimeout(() => finishCall('despedida sin fin de audio'), ESPERA_TRAS_DESPEDIDA_MS);
+        }
     } else if (msg.event_type === 'avatar.speak_started') {
         avatarHablando();
     } else if (msg.event_type === 'avatar.speak_ended') {
@@ -393,6 +418,7 @@ function onData(payload, _participant, _kind, topic) {
 async function finishCall(motivo) {
     if (finalizando || !sesion) return;
     finalizando = true;
+    clearTimeout(cierreTimer);
     console.log('[avatar] Finalizando:', motivo);
 
     endCallBtn.hidden = true;
@@ -401,7 +427,8 @@ async function finishCall(motivo) {
     tomarFoto('final');
     if (room) {
         room.removeAllListeners();
-        await room.disconnect();
+        // Con la red caida, disconnect() puede no resolver nunca y el resumen no saldria
+        await Promise.race([room.disconnect(), new Promise(r => setTimeout(r, 3000))]).catch(() => {});
     }
     apagarCamara();
     wakeLock?.release().catch(() => {});
@@ -471,6 +498,7 @@ function reintentarLlamada() {
     room = null;
     sesion = null;
     transcript = [];
+    clearTimeout(cierreTimer);   // el de la llamada anterior no puede cortar la nueva
     cerrando = false;
     finalizando = false;
     conversationId = null;
